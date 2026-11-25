@@ -14,6 +14,10 @@ using TalentScout.Api.Features.Conversations.Validators;
 using TalentScout.Api.Features.Interviews.Handlers;
 using TalentScout.Api.Features.Interviews.Requests;
 using TalentScout.Api.Features.Interviews.Validators;
+using TalentScout.Api.Features.LinkedIn;
+using TalentScout.Api.Features.LinkedIn.Handlers;
+using TalentScout.Api.Features.LinkedIn.Requests;
+using TalentScout.Api.Features.LinkedIn.Validators;
 using TalentScout.Api.Features.Pipeline;
 using TalentScout.Api.Features.Pipeline.Handlers;
 using TalentScout.Api.Features.Pipeline.Requests;
@@ -46,7 +50,7 @@ public static class DependencyInjection
         services.AddOptions<SchedulingOptions>().BindConfiguration("Scheduling");
         services.AddOptions<PipelineOptions>().BindConfiguration("Pipeline")
             .Validate(x => x.PollIntervalSeconds >= 1 && x.BatchSize is >= 1 and <= 100 && x.MinimumSendIntervalSeconds >= 1 && x.MaximumDailyMessagesPerCampaign >= 1, "Invalid pipeline limits.")
-            .Validate(x => !x.WorkerEnabled || (configuration["LinkedIn:Provider"] != "Disabled" && configuration["Ai:Provider"] != "Disabled"), "Configure real adapters before enabling the worker.")
+            .Validate(x => !x.WorkerEnabled || (configuration["LinkedIn:Provider"] == "Unipile" && !string.IsNullOrWhiteSpace(configuration["LinkedIn:ApiKey"]) && !string.IsNullOrWhiteSpace(configuration["Ai:ApiKey"])), "Configure real adapters before enabling the worker.")
             .ValidateOnStart();
         services.AddData(configuration);
         services.AddSingleton<IInterviewScheduler, ConfiguredInterviewScheduler>();
@@ -58,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<InterviewInvitationFactory>();
         services.AddScoped<PipelineCoordinator>();
         services.AddScoped<MessageDispatcher>();
+        services.AddHostedService<LinkedInWebhookStartupService>();
         services.AddHostedService<PipelineWorker>();
 
         services.AddScoped<IValidator<CreateCampaignRequest>, CreateCampaignValidator>();
@@ -69,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<GetCandidatesHandler>();
         services.AddScoped<GetCandidateHandler>();
         services.AddScoped<SearchCandidatesHandler>();
+        services.AddScoped<SearchCandidatePageHandler>();
         services.AddScoped<EnrollCandidateHandler>();
         services.AddScoped<GetCampaignCandidatesHandler>();
         services.AddScoped<GetEnrollmentStatusHandler>();
@@ -97,6 +103,8 @@ public static class DependencyInjection
         services.AddScoped<IValidator<Message>, MessageContentValidator>();
         services.AddSingleton<IValidator<string>, InterviewUrlValidator>();
         services.AddScoped<SetApprovalSettingsHandler>();
+        services.AddScoped<SetCampaignAiSettingsHandler>();
+        services.AddScoped<IValidator<SetCampaignAiSettingsRequest>, SetCampaignAiSettingsValidator>();
         services.AddScoped<GetSearchBatchesHandler>();
         services.AddScoped<StartOutreachHandler>();
         services.AddScoped<ExcludeCandidatesHandler>();
@@ -107,6 +115,23 @@ public static class DependencyInjection
         services.AddScoped<RejectInterviewInvitationsHandler>();
         services.AddScoped<IValidator<ApproveInterviewInvitationsRequest>, ApproveInterviewInvitationsValidator>();
         services.AddScoped<IValidator<RejectInterviewInvitationsRequest>, RejectInterviewInvitationsValidator>();
+        services.AddScoped<GetLinkedInConversationHandler>();
+        services.AddScoped<BindLinkedInConversationHandler>();
+        services.AddScoped<SendConnectionRequestHandler>();
+        services.AddScoped<GetLinkedInContactStatusHandler>();
+        services.AddScoped<ImportLinkedInProfileHandler>();
+        services.AddScoped<ReceiveUnipileWebhookHandler>();
+        services.AddScoped<ProcessUnipileWebhookHandler>();
+        services.AddScoped<GetUnipileWebhookEventsHandler>();
+        services.AddScoped<GetLinkedInIntegrationStatusHandler>();
+        services.AddScoped<GetLinkedInAccountsHandler>();
+        services.AddScoped<RegisterLinkedInWebhooksHandler>();
+        services.AddScoped<IValidator<RegisterLinkedInWebhooksRequest>, RegisterLinkedInWebhooksValidator>();
+        services.AddScoped<IValidator<BindLinkedInConversationRequest>, BindLinkedInConversationValidator>();
+        services.AddScoped<IValidator<SendConnectionRequest>, SendConnectionValidator>();
+        services.AddScoped<IValidator<ImportLinkedInProfileRequest>, ImportLinkedInProfileValidator>();
+        services.AddScoped<IValidator<UnipileWebhookRequest>, UnipileWebhookValidator>();
+        services.AddHostedService<UnipileWebhookWorker>();
         services.AddHealthChecks();
 
         return services;

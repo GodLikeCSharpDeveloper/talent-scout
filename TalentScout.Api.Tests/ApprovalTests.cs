@@ -6,6 +6,7 @@ using TalentScout.Api.Integrations.LinkedIn.Models;
 using TalentScout.Data.Entities;
 using TalentScout.Data.Repositories;
 using Xunit;
+using ProfileSearchResult = TalentScout.Api.Tests.TestProfileSearchPage;
 
 namespace TalentScout.Api.Tests;
 
@@ -21,6 +22,7 @@ public sealed partial class RecruitmentTests
     {
         using var scope = app.Services.CreateScope();
         var ids = await scope.ServiceProvider.GetRequiredService<IEnrollmentRepository>().GetPendingIdsAsync(10000, CancellationToken.None);
+
         return ids.Contains(enrollment);
     }
 
@@ -31,6 +33,7 @@ public sealed partial class RecruitmentTests
         await SendIntroductionAsync(client, pair.Enrollment);
         await ReplyAsync(client, pair.Enrollment);
         await AnalyzeReplyAsync(client, pair.Enrollment);
+
         return pair;
     }
 
@@ -157,7 +160,7 @@ public sealed partial class RecruitmentTests
     {
         await using var app = new TestApi(database.ConnectionString);
         using var client = await app.StartAsync();
-        var (campaign, _) = await SetupAsync(client, true, true);
+        var (campaign, _) = await SetupAsync(client);
         var settings = await JsonAsync(await client.PutAsJsonAsync($"/api/campaigns/{campaign}/approval-settings", new { autoApproveCandidates = false }));
         Assert.False(settings["autoApproveCandidates"]!.GetValue<bool>());
         Assert.True(settings["autoApproveInterviewInvitations"]!.GetValue<bool>());
@@ -170,7 +173,8 @@ public sealed partial class RecruitmentTests
     private static CandidateProfile Profile(string? id = null)
     {
         id ??= Guid.NewGuid().ToString();
-        return new(id, "https://www.linkedin.com/in/" + id, "Search Candidate", "Developer", "Europe", "C#");
+
+        return new CandidateProfile(id, "https://www.linkedin.com/in/" + id, "Search Candidate", "Developer", "Europe", "C#");
     }
 
     [Theory]
@@ -194,6 +198,7 @@ public sealed partial class RecruitmentTests
             await delayScope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(CancellationToken.None);
             await SendIntroductionAsync(client, enrollmentId);
         }
+
         using var staleScope = app.Services.CreateScope();
         var enrollment = (await staleScope.ServiceProvider.GetRequiredService<IEnrollmentRepository>().GetDetailsAsync(enrollmentId, CancellationToken.None))!;
         var messages = staleScope.ServiceProvider.GetRequiredService<IMessageRepository>();
@@ -226,13 +231,13 @@ public sealed partial class RecruitmentTests
         using var client = await app.StartAsync();
         var (campaign, _) = await SetupAsync(client, false, false);
         var old = Profile();
-        app.LinkedIn.SearchPages.Enqueue(new([old], null));
+        app.LinkedIn.SearchPages.Enqueue(new ProfileSearchResult([old], null));
         var first = await JsonAsync(await client.PostAsJsonAsync($"/api/campaigns/{campaign}/search", new { limit = 1 }));
         var oldId = Guid.Parse(first["enrollmentIds"]![0]!.ToString());
         await ScreenProfileAsync(client, oldId);
         (await client.PostAsJsonAsync($"/api/campaigns/{campaign}/outreach/exclude", new { enrollmentIds = new[] { oldId } })).EnsureSuccessStatusCode();
-        app.LinkedIn.SearchPages.Enqueue(new([old, Profile()], "page-two"));
-        app.LinkedIn.SearchPages.Enqueue(new([Profile()], null));
+        app.LinkedIn.SearchPages.Enqueue(new ProfileSearchResult([old, Profile()], "page-two"));
+        app.LinkedIn.SearchPages.Enqueue(new ProfileSearchResult([Profile()], null));
         var result = await JsonAsync(await client.PostAsJsonAsync($"/api/campaigns/{campaign}/search", new { limit = 2 }));
         Assert.Equal(2, result["addedCount"]!.GetValue<int>());
         Assert.Equal(1, result["skippedCount"]!.GetValue<int>());
@@ -255,10 +260,10 @@ public sealed partial class RecruitmentTests
         using var client = await app.StartAsync();
         var (campaign, _) = await SetupAsync(client, false, false);
         var old = Profile();
-        app.LinkedIn.SearchPages.Enqueue(new([old], null));
+        app.LinkedIn.SearchPages.Enqueue(new ProfileSearchResult([old], null));
         await JsonAsync(await client.PostAsJsonAsync($"/api/campaigns/{campaign}/search", new { limit = 1 }));
-        app.LinkedIn.SearchPages.Enqueue(new([old], "same"));
-        app.LinkedIn.SearchPages.Enqueue(new([old], "same"));
+        app.LinkedIn.SearchPages.Enqueue(new ProfileSearchResult([old], "same"));
+        app.LinkedIn.SearchPages.Enqueue(new ProfileSearchResult([old], "same"));
         var result = await JsonAsync(await client.PostAsJsonAsync($"/api/campaigns/{campaign}/search", new { limit = 1, maxProfilesToScan = repeated ? 10 : 1 }));
         Assert.Equal(expected, result["stopReason"]!.ToString());
         Assert.Equal(0, result["addedCount"]!.GetValue<int>());

@@ -11,6 +11,11 @@ public sealed class CandidateRepository(AppDbContext db) : ICandidateRepository
         return await db.Candidates.FindAsync([id], ct);
     }
 
+    public Task<Candidate?> FindByExternalIdAsync(string externalId, CancellationToken ct)
+    {
+        return db.Candidates.SingleOrDefaultAsync(x => x.ExternalId == externalId, ct);
+    }
+
     public Task<Candidate?> FindByIdentityAsync(string externalId, string profileUrl, CancellationToken ct)
     {
         return db.Candidates.SingleOrDefaultAsync(x => x.ExternalId == externalId || x.ProfileUrl == profileUrl, ct);

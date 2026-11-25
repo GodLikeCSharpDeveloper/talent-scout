@@ -50,6 +50,7 @@ public sealed class StartOutreachHandler(
                     enrollment.ApprovedAt = now;
                     audit.Add(id, enrollment.Id, "OutreachManuallyApproved", "Existing automatic outreach");
                 }
+
                 alreadyStarted.Add(enrollment.Id);
 
                 continue;

@@ -1,0 +1,10 @@
+version: 1
+name: OpenAI SDK contract
+slug: openai-sdk-contract
+protocol: http
+port: 15963
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true

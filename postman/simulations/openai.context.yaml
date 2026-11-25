@@ -1,0 +1,19 @@
+# Local verification only. No published mock search: this CLI has no status command/authenticated workspace context.
+fingerprints:
+  - git: "2a4c1fe + working tree OpenAI integration"
+    cli: "1.75.0"
+assumptions:
+  - id: sdk-structured-contract
+    status: unknown
+    claim: The configured real model accepts all three strict JSON schemas and follows the campaign prompt.
+    reason: SDK documentation establishes the request mechanism; no live credential or model call was used.
+    verification: Official SDK structured-output examples reviewed; synthetic responses cannot establish model quality or account/model access.
+    source: https://github.com/openai/openai-dotnet; https://developers.openai.com/api/docs/guides/structured-outputs
+    updated_at: "2026-11-25"
+  - id: caller-response-handling
+    status: unknown
+    claim: The SDK adapter accepts complete structured responses and rejects malformed, refused, truncated and failed responses.
+    reason: Awaiting the independent Postman simulation run.
+    verification: Kestrel HTTP tests pass; the Postman simulation run is pending.
+    source: TalentScout.Api.Tests/OpenAiTests.cs; postman/mocks/openai/default.js
+    updated_at: "2026-11-25"

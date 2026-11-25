@@ -1,6 +1,6 @@
+using Ardalis.Result;
 using Ardalis.Result.FluentValidation;
 using FluentValidation;
-using Ardalis.Result;
 using TalentScout.Api.Features.Campaigns.Requests;
 using TalentScout.Data.Entities;
 using TalentScout.Data.Repositories;
@@ -12,7 +12,9 @@ public sealed class SetApprovalSettingsHandler(ICampaignRepository campaigns, IA
     public async Task<Result<Campaign>> HandleAsync(Guid id, SetApprovalSettingsRequest request, CancellationToken ct)
     {
         var validation = await validator.ValidateAsync(request, ct);
-        if (!validation.IsValid) return Result<Campaign>.Invalid(validation.AsErrors());
+
+        if (!validation.IsValid)
+            return Result<Campaign>.Invalid(validation.AsErrors());
 
         var campaign = await campaigns.FindAsync(id, ct);
 
@@ -20,8 +22,10 @@ public sealed class SetApprovalSettingsHandler(ICampaignRepository campaigns, IA
             return Result<Campaign>.NotFound("Campaign was not found.");
         if (campaign.Status == CampaignStatus.Stopped)
             return Result<Campaign>.Conflict("Campaign is stopped.");
+
         var autoCandidates = request.AutoApproveCandidates ?? campaign.AutoApproveCandidates;
         var autoInvitations = request.AutoApproveInterviewInvitations ?? campaign.AutoApproveInterviewInvitations;
+
         if (campaign.AutoApproveCandidates == autoCandidates && campaign.AutoApproveInterviewInvitations == autoInvitations)
             return Result<Campaign>.Success(campaign);
 

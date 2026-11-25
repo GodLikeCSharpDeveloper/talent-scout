@@ -5,7 +5,6 @@ using TalentScout.Api.Features.Candidates.Requests;
 using TalentScout.Api.Features.Candidates.Responses;
 using TalentScout.Api.Features.Pipeline.Handlers;
 using TalentScout.Api.Integrations.LinkedIn.Abstractions;
-using TalentScout.Api.Integrations.LinkedIn.Models;
 using TalentScout.Data.Entities;
 using TalentScout.Data.Repositories;
 
@@ -16,7 +15,9 @@ public sealed class SearchCandidatesHandler(
     ISearchBatchRepository batches,
     IAuditRepository audit,
     IUnitOfWork unitOfWork,
-    ILinkedInGateway linkedIn,
+    SearchCandidatePageHandler search,
+    ILinkedInProfiles profiles,
+    ICandidateRepository candidates,
     CandidateImporter importer,
     CandidateEnroller enroller,
     IValidator<SearchCandidatesRequest> validator,
@@ -57,16 +58,26 @@ public sealed class SearchCandidatesHandler(
                 }
 
                 var pageLimit = Math.Min(request.Limit - ids.Count, request.MaxProfilesToScan - batch.ScannedCount);
-                var page = await linkedIn.SearchAsync(new ProfileSearch(campaign.SearchQuery, campaign.Location, pageLimit, cursor), ct);
+                var page = await search.HandleAsync(campaign.SearchQuery, campaign.Location, pageLimit, cursor, ct);
 
                 if (page is null || page.Profiles is null || page.Profiles.Count > pageLimit)
                     throw new ApiException(502, "LinkedIn returned an invalid search page.");
 
                 batch.PagesScanned++;
-                foreach (var profile in page.Profiles)
+                foreach (var reference in page.Profiles)
                 {
                     batch.ScannedCount++;
-                    var candidate = await importer.ImportAsync(profile, ct);
+                    var candidate = await candidates.FindByExternalIdAsync(reference.ExternalId, ct);
+                    if (candidate is null)
+                    {
+                        var profile = await profiles.GetProfileAsync(reference.ExternalId, ct);
+
+                        if (profile.ExternalId != reference.ExternalId)
+                            throw new ApiException(502, "LinkedIn returned a profile for a different search result.");
+
+                        candidate = await importer.ImportAsync(profile, ct);
+                    }
+
                     if (!seenCandidates.Add(candidate.Id))
                     {
                         batch.SkippedCount++;

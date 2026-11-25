@@ -37,6 +37,8 @@ public sealed class GetCampaignCandidatesHandler(ICampaignRepository campaigns, 
                 x.SearchBatchId,
                 x.ApprovalStatus,
                 x.ApprovedAt,
-                x.OutreachStartedAt, x.InvitationApprovalStatus, x.InvitationApprovedAt)).ToList());
+                x.OutreachStartedAt,
+                x.InvitationApprovalStatus,
+                x.InvitationApprovedAt)).ToList());
     }
 }

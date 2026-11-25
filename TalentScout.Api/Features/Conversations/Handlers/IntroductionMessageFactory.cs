@@ -24,7 +24,7 @@ public sealed class IntroductionMessageFactory(
         var campaign = enrollment.Campaign;
         var candidate = enrollment.Candidate;
         var text = await ai.WriteIntroductionAsync(
-            new Vacancy(campaign.JobTitle, campaign.Description, campaign.Requirements),
+            new Vacancy(campaign.JobTitle, campaign.Description, campaign.Requirements, campaign.SystemPrompt),
             new CandidateProfile(candidate.ExternalId, candidate.ProfileUrl, candidate.Name, candidate.Headline, candidate.Location, candidate.Experience),
             ct);
         var message = new Message { EnrollmentId = enrollment.Id, Kind = MessageKind.Initial, Content = text };

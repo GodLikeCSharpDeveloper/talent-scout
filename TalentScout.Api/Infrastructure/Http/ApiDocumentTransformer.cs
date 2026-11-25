@@ -17,6 +17,16 @@ public sealed class ApiDocumentTransformer : IOpenApiDocumentTransformer
             Name = "X-Api-Key",
             In = ParameterLocation.Header
         };
+        document.Components.SecuritySchemes["UnipileWebhook"] = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.ApiKey, Name = "X-Unipile-Secret", In = ParameterLocation.Header
+        };
+        if (document.Paths.TryGetValue("/api/webhooks/unipile", out var webhookPath) && webhookPath.Operations is not null)
+        {
+            foreach (var operation in webhookPath.Operations.Values)
+                operation.Security = [new OpenApiSecurityRequirement { [new OpenApiSecuritySchemeReference("UnipileWebhook", document)] = [] }];
+        }
+
         document.Security =
         [
             new OpenApiSecurityRequirement

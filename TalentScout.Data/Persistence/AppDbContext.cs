@@ -5,6 +5,8 @@ namespace TalentScout.Data.Persistence;
 
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<LinkedInConversation> LinkedInConversations => Set<LinkedInConversation>();
+    public DbSet<LinkedInWebhookEvent> LinkedInWebhookEvents => Set<LinkedInWebhookEvent>();
     public DbSet<CandidateSearchBatch> SearchBatches => Set<CandidateSearchBatch>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
@@ -15,6 +17,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        model.Entity<LinkedInConversation>().HasIndex(x => x.EnrollmentId).IsUnique();
+        model.Entity<LinkedInConversation>().HasIndex(x => new { x.AccountId, x.RecipientId }).IsUnique();
+        model.Entity<LinkedInConversation>().HasIndex(x => new { x.AccountId, x.ChatId }).IsUnique().HasFilter("\"ChatId\" IS NOT NULL");
+        model.Entity<LinkedInConversation>().HasOne<Enrollment>().WithMany().HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<LinkedInConversation>().Property(x => x.Version).IsConcurrencyToken();
+        model.Entity<LinkedInWebhookEvent>().HasIndex(x => new { x.AccountId, x.ExternalMessageId }).IsUnique();
+        model.Entity<LinkedInWebhookEvent>().HasIndex(x => new { x.ProcessedAt, x.NextAttemptAt });
         model.Entity<CandidateSearchBatch>().HasIndex(x => new { x.CampaignId, x.CreatedAt });
         model.Entity<CandidateSearchBatch>().HasOne<Campaign>().WithMany().HasForeignKey(x => x.CampaignId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Enrollment>().HasOne<CandidateSearchBatch>().WithMany().HasForeignKey(x => x.SearchBatchId).OnDelete(DeleteBehavior.Restrict);
@@ -48,6 +57,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 e.Version = Guid.NewGuid();
             if (entry.Entity is Campaign c)
                 c.Version = Guid.NewGuid();
+            if (entry.Entity is LinkedInConversation conversation)
+                conversation.Version = Guid.NewGuid();
             if (entry.Entity is Message m)
                 m.Version = Guid.NewGuid();
         }

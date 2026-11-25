@@ -14,7 +14,7 @@ public sealed class ProfileScreener(ICampaignRepository campaigns, IAuditReposit
         var campaign = enrollment.Campaign;
         var candidate = enrollment.Candidate;
         var result = await ai.AssessProfileAsync(
-            new Vacancy(campaign.JobTitle, campaign.Description, campaign.Requirements),
+            new Vacancy(campaign.JobTitle, campaign.Description, campaign.Requirements, campaign.SystemPrompt),
             new CandidateProfile(candidate.ExternalId, candidate.ProfileUrl, candidate.Name, candidate.Headline, candidate.Location, candidate.Experience),
             ct);
 

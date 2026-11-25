@@ -15,6 +15,8 @@ public static class DependencyInjection
             connection = (configuration.GetSection("Database").Get<DatabaseOptions>() ?? new DatabaseOptions()).ToConnectionString();
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connection));
         services.AddScoped<ISearchBatchRepository, SearchBatchRepository>();
+        services.AddScoped<ILinkedInConversationRepository, LinkedInConversationRepository>();
+        services.AddScoped<ILinkedInWebhookRepository, LinkedInWebhookRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<ICampaignRepository, CampaignRepository>();
         services.AddScoped<ICandidateRepository, CandidateRepository>();

@@ -107,6 +107,8 @@ internal class AppDbContextModelSnapshot : ModelSnapshot
                     .IsConcurrencyToken()
                     .HasColumnType("uuid");
 
+                b.Property<string>("SystemPrompt").IsRequired().HasColumnType("text");
+
                 b.Property<bool>("AutoApproveCandidates").HasColumnType("boolean");
                 b.Property<bool>("AutoApproveInterviewInvitations").HasColumnType("boolean");
 
@@ -409,6 +411,62 @@ internal class AppDbContextModelSnapshot : ModelSnapshot
             {
                 b.HasOne("TalentScout.Data.Entities.CandidateSearchBatch", null).WithMany().HasForeignKey("SearchBatchId")
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+        modelBuilder.Entity(
+            "TalentScout.Data.Entities.LinkedInConversation",
+            b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("EnrollmentId").HasColumnType("uuid");
+                b.Property<string>("AccountId").IsRequired().HasColumnType("text");
+                b.Property<string>("RecipientId").IsRequired().HasColumnType("text");
+                b.Property<string>("ChatId").HasColumnType("text");
+                b.Property<string>("ProviderChatId").HasColumnType("text");
+                b.Property<string>("InvitationId").HasColumnType("text");
+                b.Property<int?>("ConnectionRequestDelivery").HasColumnType("integer");
+                b.Property<DateTimeOffset?>("ConnectionRequestedAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("ConnectionConfirmedAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.Property<Guid>("Version").IsConcurrencyToken().HasColumnType("uuid");
+                b.HasKey("Id");
+                b.HasIndex("EnrollmentId").IsUnique();
+                b.HasIndex("AccountId", "RecipientId").IsUnique();
+                b.HasIndex("AccountId", "ChatId").IsUnique().HasFilter("\"ChatId\" IS NOT NULL");
+                b.ToTable("LinkedInConversations");
+            });
+
+        modelBuilder.Entity(
+            "TalentScout.Data.Entities.LinkedInWebhookEvent",
+            b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<string>("EventType").IsRequired().HasColumnType("text");
+                b.Property<string>("AccountId").IsRequired().HasColumnType("text");
+                b.Property<string>("ExternalMessageId").IsRequired().HasColumnType("text");
+                b.Property<string>("ChatId").IsRequired().HasColumnType("text");
+                b.Property<string>("ProviderChatId").HasColumnType("text");
+                b.Property<string>("SenderId").IsRequired().HasColumnType("text");
+                b.Property<string>("Content").IsRequired().HasColumnType("text");
+                b.Property<bool>("HasAttachments").HasColumnType("boolean");
+                b.Property<DateTimeOffset>("OccurredAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("ReceivedAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset>("NextAttemptAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("LeaseUntil").HasColumnType("timestamp with time zone");
+                b.Property<DateTimeOffset?>("ProcessedAt").HasColumnType("timestamp with time zone");
+                b.Property<int>("Attempts").HasColumnType("integer");
+                b.Property<string>("LastError").HasColumnType("text");
+                b.HasKey("Id");
+                b.HasIndex("AccountId", "ExternalMessageId").IsUnique();
+                b.HasIndex("ProcessedAt", "NextAttemptAt");
+                b.ToTable("LinkedInWebhookEvents");
+            });
+
+        modelBuilder.Entity(
+            "TalentScout.Data.Entities.LinkedInConversation",
+            b =>
+            {
+                b.HasOne("TalentScout.Data.Entities.Enrollment", null).WithMany().HasForeignKey("EnrollmentId")
+                    .OnDelete(DeleteBehavior.Restrict).IsRequired();
             });
 #pragma warning restore 612, 618
     }

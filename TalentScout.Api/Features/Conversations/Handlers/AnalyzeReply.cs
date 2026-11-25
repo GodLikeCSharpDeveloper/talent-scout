@@ -14,7 +14,7 @@ public sealed class ReplyAnalyzer(IMessageRepository messages, IAuditRepository 
         var history = (await messages.GetHistoryAsync(enrollment.Id, reply.CreatedAt, ct))
             .Select(x => new ConversationEntry(x.Kind == MessageKind.Reply ? "candidate" : "recruiter", x.Content)).ToList();
         var campaign = enrollment.Campaign;
-        var result = await ai.ClassifyReplyAsync(new Vacancy(campaign.JobTitle, campaign.Description, campaign.Requirements), history, ct);
+        var result = await ai.ClassifyReplyAsync(new Vacancy(campaign.JobTitle, campaign.Description, campaign.Requirements, campaign.SystemPrompt), history, ct);
 
         if (result is null || !(await validator.ValidateAsync(result, ct)).IsValid)
             throw new ApiException(502, "AI returned an invalid reply assessment.");

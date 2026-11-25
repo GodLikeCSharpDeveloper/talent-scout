@@ -82,15 +82,25 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
 
         if (enrollment.ApprovalStatus == OutreachApprovalStatus.Excluded)
             return false;
+
         var approved = message.Kind switch
         {
             MessageKind.Initial => enrollment.Campaign.AutoApproveCandidates ||
-                (enrollment.ApprovalStatus == OutreachApprovalStatus.Approved && enrollment.OutreachStartedAt.HasValue),
+                                   (enrollment.ApprovalStatus == OutreachApprovalStatus.Approved && enrollment.OutreachStartedAt.HasValue),
             MessageKind.Invitation => enrollment.InvitationApprovalStatus != InvitationApprovalStatus.Rejected &&
-                (enrollment.Campaign.AutoApproveInterviewInvitations || enrollment.InvitationApprovalStatus == InvitationApprovalStatus.Approved),
+                                      (enrollment.Campaign.AutoApproveInterviewInvitations || enrollment.InvitationApprovalStatus == InvitationApprovalStatus.Approved),
             _ => false
         };
-        if (!approved) return false;
+
+        if (!approved)
+            return false;
+
+        if (await db.LinkedInWebhookEvents.AnyAsync(
+                x => x.ProcessedAt == null &&
+                     db.LinkedInConversations.Any(c => c.EnrollmentId == enrollment.Id && c.AccountId == x.AccountId &&
+                                                       (c.ChatId == x.ChatId || c.RecipientId == x.SenderId)),
+                ct))
+            return false;
 
         var canSend = message.Kind switch
         {
@@ -110,8 +120,10 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
         var version = enrollment.Version;
         var enrollmentClaimed = await db.Enrollments.Where(x => x.Id == enrollment.Id && x.Version == version)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Version, Guid.NewGuid()), ct);
+
         if (enrollmentClaimed == 0)
             return false;
+
         await db.Entry(enrollment).ReloadAsync(ct);
 
         var claimed = await db.Messages.Where(x => x.Id == message.Id && x.Delivery == DeliveryStatus.Pending)
@@ -123,8 +135,10 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
         if (enrollment.Campaign.Status == CampaignStatus.Draft)
         {
             await db.Campaigns.Where(x => x.Id == enrollment.CampaignId)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, CampaignStatus.Active)
-                    .SetProperty(x => x.Version, Guid.NewGuid()), ct);
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(x => x.Status, CampaignStatus.Active)
+                        .SetProperty(x => x.Version, Guid.NewGuid()),
+                    ct);
             await db.Entry(enrollment.Campaign).ReloadAsync(ct);
         }
 
@@ -132,10 +146,12 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
         {
             // Automatic permission is distinct from manual approval and is checked again on every send.
             await db.Enrollments.Where(x => x.Id == enrollment.Id)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.ApprovalStatus, OutreachApprovalStatus.Automatic)
-                    .SetProperty(x => x.ApprovedAt, x => x.ApprovedAt ?? now)
-                    .SetProperty(x => x.OutreachStartedAt, x => x.OutreachStartedAt ?? now)
-                    .SetProperty(x => x.Version, Guid.NewGuid()), ct);
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(x => x.ApprovalStatus, OutreachApprovalStatus.Automatic)
+                        .SetProperty(x => x.ApprovedAt, x => x.ApprovedAt ?? now)
+                        .SetProperty(x => x.OutreachStartedAt, x => x.OutreachStartedAt ?? now)
+                        .SetProperty(x => x.Version, Guid.NewGuid()),
+                    ct);
             await db.Entry(enrollment).ReloadAsync(ct);
         }
 
@@ -143,9 +159,11 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
             enrollment.InvitationApprovalStatus != InvitationApprovalStatus.Approved)
         {
             await db.Enrollments.Where(x => x.Id == enrollment.Id)
-                .ExecuteUpdateAsync(s => s.SetProperty(x => x.InvitationApprovalStatus, InvitationApprovalStatus.Automatic)
-                    .SetProperty(x => x.InvitationApprovedAt, x => x.InvitationApprovedAt ?? now)
-                    .SetProperty(x => x.Version, Guid.NewGuid()), ct);
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(x => x.InvitationApprovalStatus, InvitationApprovalStatus.Automatic)
+                        .SetProperty(x => x.InvitationApprovedAt, x => x.InvitationApprovedAt ?? now)
+                        .SetProperty(x => x.Version, Guid.NewGuid()),
+                    ct);
             await db.Entry(enrollment).ReloadAsync(ct);
         }
 

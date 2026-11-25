@@ -9,6 +9,6 @@ public sealed class SearchCandidatesValidator : AbstractValidator<SearchCandidat
     {
         RuleFor(x => x.Limit).InclusiveBetween(1, 100);
         RuleFor(x => x.MaxProfilesToScan).InclusiveBetween(1, 10000).GreaterThanOrEqualTo(x => x.Limit);
-        RuleFor(x => x.Cursor).MaximumLength(2000);
+        RuleFor(x => x.Cursor).MaximumLength(32768);
     }
 }

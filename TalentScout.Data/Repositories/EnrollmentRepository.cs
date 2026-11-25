@@ -32,28 +32,30 @@ public sealed class EnrollmentRepository(AppDbContext db) : IEnrollmentRepositor
     {
         return db.Enrollments.AsNoTracking().Where(x => x.CampaignId == campaignId && (status == null || x.Status == status) &&
                                                         (searchBatchId == null || x.SearchBatchId == searchBatchId) && (approvalStatus == null || x.ApprovalStatus == approvalStatus) &&
-                (invitationApprovalStatus == null || x.InvitationApprovalStatus == invitationApprovalStatus))
+                                                        (invitationApprovalStatus == null || x.InvitationApprovalStatus == invitationApprovalStatus))
             .OrderByDescending(x => x.FitScore).ThenBy(x => x.Id).Skip(skip).Take(take)
             .Select(x => new CampaignCandidateRecord(x.Id, x.CandidateId, x.Candidate.Name, x.Status, x.FitScore, x.Assessment, x.HasSentInitialMessage, x.HasSentInvitation, x.SearchBatchId, x.ApprovalStatus, x.ApprovedAt, x.OutreachStartedAt, x.InvitationApprovalStatus, x.InvitationApprovedAt)).ToListAsync(ct);
     }
 
     public Task<List<Guid>> GetPendingIdsAsync(int limit, CancellationToken ct)
     {
-        return db.Enrollments.AsNoTracking().Where(x => x.ApprovalStatus != OutreachApprovalStatus.Excluded &&
-            (((x.Campaign.Status == CampaignStatus.Draft || x.Campaign.Status == CampaignStatus.Active) && x.Status == CandidateStatus.Found) ||
-             ((x.Campaign.Status == CampaignStatus.Active || (x.Campaign.Status == CampaignStatus.Draft && x.Campaign.AutoApproveCandidates)) &&
-              x.Status == CandidateStatus.Screened &&
-              (x.Campaign.AutoApproveCandidates || (x.ApprovalStatus == OutreachApprovalStatus.Approved && x.OutreachStartedAt != null))) ||
-             (x.Campaign.Status == CampaignStatus.Active &&
-              ((x.Status == CandidateStatus.Interested && x.InvitationApprovalStatus != InvitationApprovalStatus.Rejected &&
-                (x.Campaign.AutoApproveInterviewInvitations || x.InvitationApprovalStatus == InvitationApprovalStatus.Approved)) ||
-               db.Messages.Any(m => m.EnrollmentId == x.Id && m.Kind == MessageKind.Reply && !m.Analyzed)))))
+        var now = DateTimeOffset.UtcNow;
+
+        return db.Enrollments.AsNoTracking().Where(x => (x.NextContactAt == null || x.NextContactAt <= now) && x.ApprovalStatus != OutreachApprovalStatus.Excluded &&
+                                                        (((x.Campaign.Status == CampaignStatus.Draft || x.Campaign.Status == CampaignStatus.Active) && x.Status == CandidateStatus.Found) ||
+                                                         ((x.Campaign.Status == CampaignStatus.Active || (x.Campaign.Status == CampaignStatus.Draft && x.Campaign.AutoApproveCandidates)) &&
+                                                          x.Status == CandidateStatus.Screened &&
+                                                          (x.Campaign.AutoApproveCandidates || (x.ApprovalStatus == OutreachApprovalStatus.Approved && x.OutreachStartedAt != null))) ||
+                                                         (x.Campaign.Status == CampaignStatus.Active &&
+                                                          ((x.Status == CandidateStatus.Interested && x.InvitationApprovalStatus != InvitationApprovalStatus.Rejected &&
+                                                            (x.Campaign.AutoApproveInterviewInvitations || x.InvitationApprovalStatus == InvitationApprovalStatus.Approved)) ||
+                                                           db.Messages.Any(m => m.EnrollmentId == x.Id && m.Kind == MessageKind.Reply && !m.Analyzed)))))
             .OrderBy(x => x.NextContactAt ?? x.CreatedAt).ThenBy(x => x.Id).Take(limit).Select(x => x.Id).ToListAsync(ct);
     }
 
     public async Task ScheduleNextAttemptAsync(Guid id, DateTimeOffset nextAttempt, CancellationToken ct)
     {
-        await db.Enrollments.Where(x => x.Id == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.NextContactAt, nextAttempt), ct);
+        await db.Enrollments.Where(x => x.Id == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.NextContactAt, x => x.NextContactAt > nextAttempt ? x.NextContactAt : nextAttempt), ct);
     }
 
     public Task ReloadAsync(Enrollment enrollment, CancellationToken ct)

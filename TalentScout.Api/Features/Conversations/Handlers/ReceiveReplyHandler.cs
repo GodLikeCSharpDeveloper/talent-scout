@@ -9,7 +9,7 @@ namespace TalentScout.Api.Features.Conversations.Handlers;
 
 public sealed class ReceiveReplyHandler(IEnrollmentRepository enrollments, IMessageRepository messages, IAuditRepository audit, IUnitOfWork unitOfWork, IValidator<ReceiveReplyRequest> validator)
 {
-    public async Task<Result<Message>> HandleAsync(Guid id, ReceiveReplyRequest request, CancellationToken ct)
+    public async Task<Result<Message>> HandleAsync(Guid id, ReceiveReplyRequest request, CancellationToken ct, DateTimeOffset? receivedAt = null)
     {
         var validation = await validator.ValidateAsync(request, ct);
 
@@ -35,7 +35,7 @@ public sealed class ReceiveReplyHandler(IEnrollmentRepository enrollments, IMess
         if (!enrollment.HasSentInitialMessage)
             return Result<Message>.Conflict("The initial message must be confirmed as sent before ingesting replies.");
 
-        var message = new Message { EnrollmentId = id, ExternalId = externalId, Content = content, Kind = MessageKind.Reply, Delivery = DeliveryStatus.Received };
+        var message = new Message { EnrollmentId = id, ExternalId = externalId, Content = content, Kind = MessageKind.Reply, Delivery = DeliveryStatus.Received, CreatedAt = receivedAt ?? DateTimeOffset.UtcNow };
         // Touch the concurrency token so an in-flight processor cannot overwrite a newer reply.
         enrollment.Version = Guid.NewGuid();
         messages.Add(message);

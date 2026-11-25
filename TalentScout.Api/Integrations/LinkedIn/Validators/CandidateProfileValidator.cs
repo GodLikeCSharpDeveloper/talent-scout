@@ -15,8 +15,8 @@ public sealed class CandidateProfileValidator : AbstractValidator<CandidateProfi
                 uri.AbsolutePath.StartsWith("/in/", StringComparison.OrdinalIgnoreCase))
             .WithMessage("ProfileUrl must be an HTTPS LinkedIn /in/ profile without user information.");
         RuleFor(x => x.Name).NotEmpty().MaximumLength(300);
-        RuleFor(x => x.Headline).NotEmpty().MaximumLength(1000);
-        RuleFor(x => x.Location).NotEmpty().MaximumLength(300);
-        RuleFor(x => x.Experience).NotEmpty().MaximumLength(30000);
+        RuleFor(x => x.Headline).NotNull().MaximumLength(1000);
+        RuleFor(x => x.Location).NotNull().MaximumLength(300);
+        RuleFor(x => x.Experience).NotNull().MaximumLength(30000);
     }
 }

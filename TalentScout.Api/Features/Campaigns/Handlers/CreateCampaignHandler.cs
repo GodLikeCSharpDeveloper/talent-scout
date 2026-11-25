@@ -22,6 +22,7 @@ public sealed class CreateCampaignHandler(ICampaignRepository campaigns, IAuditR
             JobTitle = request.JobTitle.Trim(),
             Description = request.Description.Trim(),
             Requirements = request.Requirements.Trim(),
+            SystemPrompt = request.SystemPrompt.Trim(),
             SearchQuery = request.SearchQuery.Trim(),
             Location = request.Location.Trim(),
             Recruiter = request.Recruiter.Trim(),
