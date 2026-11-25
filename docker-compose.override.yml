@@ -1,0 +1,4 @@
+services:
+  talentscout.api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development

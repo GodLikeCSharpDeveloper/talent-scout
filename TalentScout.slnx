@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
+  <Project Path="TalentScout.Api/TalentScout.Api.csproj" />
+  <Project Path="TalentScout.Api.Tests/TalentScout.Api.Tests.csproj" />
+  <Project Path="TalentScout.Data/TalentScout.Data.csproj" />
+</Solution>

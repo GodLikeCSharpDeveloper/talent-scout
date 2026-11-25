@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: talentscout
+      POSTGRES_USER: talentscout
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U talentscout -d talentscout"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  talentscout.api:
+    image: ${DOCKER_REGISTRY-}talentscoutapi
+    build:
+      context: .
+      dockerfile: TalentScout.Api/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      Database__Host: postgres
+      Database__Password: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      Security__ApiKey: ${API_KEY:?Set API_KEY to a random value of at least 32 characters}
+      LinkedIn__Provider: Disabled
+      LinkedIn__BaseUrl: ${LINKEDIN_BASE_URL:-}
+      LinkedIn__ApiKey: ${LINKEDIN_API_KEY:-}
+      Ai__Provider: Disabled
+      Ai__BaseUrl: ${AI_BASE_URL:-}
+      Ai__ApiKey: ${AI_API_KEY:-}
+      Ai__Model: ${AI_MODEL:-}
+      Scheduling__DefaultInterviewUrl: ${INTERVIEW_URL:-}
+      Scheduling__ApiKey: ${SCHEDULING_API_KEY:-}
+      Scheduling__WebhookSigningKey: ${SCHEDULING_WEBHOOK_SIGNING_KEY:-}
+      Pipeline__WorkerEnabled: "false"
+    ports:
+      - "127.0.0.1:${API_PORT:-5262}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
