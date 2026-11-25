@@ -26,6 +26,8 @@ public sealed class GetEnrollmentStatusHandler(IEnrollmentRepository enrollments
                 enrollment.SearchBatchId,
                 enrollment.ApprovalStatus,
                 enrollment.ApprovedAt,
-                enrollment.OutreachStartedAt));
+                enrollment.OutreachStartedAt,
+                enrollment.InvitationApprovalStatus,
+                enrollment.InvitationApprovedAt));
     }
 }

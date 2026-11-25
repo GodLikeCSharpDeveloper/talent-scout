@@ -17,9 +17,8 @@ public sealed class SendInterviewInvitationHandler(
 
         if (enrollment is null)
             return Result<SendMessageResponse>.NotFound("Enrollment was not found.");
-        if (enrollment.Campaign.Status != CampaignStatus.Active &&
-            !(enrollment.Campaign.Status == CampaignStatus.Draft && enrollment.Campaign.AutoApproveCandidates))
-            return Result<SendMessageResponse>.Conflict("Campaign must be active or have automatic outreach enabled.");
+        if (enrollment.Campaign.Status != CampaignStatus.Active)
+            return Result<SendMessageResponse>.Conflict("Campaign must be active.");
         if (enrollment.ApprovalStatus == OutreachApprovalStatus.Excluded)
             return Result<SendMessageResponse>.Conflict("Candidate was excluded from outreach.");
         if (!enrollment.HasSentInvitation && enrollment.Status != CandidateStatus.Interested)
@@ -29,9 +28,11 @@ public sealed class SendInterviewInvitationHandler(
         if (await messages.GetNextUnanalyzedReplyAsync(id, ct) is not null)
             return Result<SendMessageResponse>.Conflict("Analyze pending replies before sending an interview invitation.");
 
-        if (!enrollment.HasSentInvitation && !enrollment.Campaign.AutoApproveCandidates &&
-            (enrollment.ApprovalStatus != OutreachApprovalStatus.Approved || enrollment.OutreachStartedAt is null))
-            return Result<SendMessageResponse>.Conflict("Outreach has not been approved and started for this candidate.");
+        if (!enrollment.HasSentInvitation && enrollment.InvitationApprovalStatus == InvitationApprovalStatus.Rejected)
+            return Result<SendMessageResponse>.Conflict("The interview invitation was rejected by the recruiter.");
+        if (!enrollment.HasSentInvitation && !enrollment.Campaign.AutoApproveInterviewInvitations &&
+            enrollment.InvitationApprovalStatus != InvitationApprovalStatus.Approved)
+            return Result<SendMessageResponse>.Conflict("Approve this interview invitation or enable automatic interview invitations.");
 
         var message = await factory.GetOrCreateAsync(enrollment, ct);
         if (message.Delivery == DeliveryStatus.Pending)

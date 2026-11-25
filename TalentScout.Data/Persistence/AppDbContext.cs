@@ -19,6 +19,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         model.Entity<CandidateSearchBatch>().HasOne<Campaign>().WithMany().HasForeignKey(x => x.CampaignId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Enrollment>().HasOne<CandidateSearchBatch>().WithMany().HasForeignKey(x => x.SearchBatchId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Enrollment>().HasIndex(x => new { x.CampaignId, x.ApprovalStatus, x.Status });
+        model.Entity<Enrollment>().HasIndex(x => new { x.CampaignId, x.InvitationApprovalStatus, x.Status });
         model.Entity<Candidate>().HasIndex(x => x.ExternalId).IsUnique();
         model.Entity<Candidate>().HasIndex(x => x.ProfileUrl).IsUnique();
         model.Entity<Candidate>().Property(x => x.ExternalId).HasMaxLength(300);

@@ -25,6 +25,8 @@ public sealed class Enrollment
     public OutreachApprovalStatus ApprovalStatus { get; set; }
     public DateTimeOffset? ApprovedAt { get; set; }
     public DateTimeOffset? OutreachStartedAt { get; set; }
+    public InvitationApprovalStatus InvitationApprovalStatus { get; set; }
+    public DateTimeOffset? InvitationApprovedAt { get; set; }
     public CandidateStatus Status { get; set; }
     public decimal? FitScore { get; set; }
     public string? Assessment { get; set; }

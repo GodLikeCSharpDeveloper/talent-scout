@@ -24,16 +24,16 @@ public sealed class PipelineCoordinator(
             return null;
         if (enrollment.Status == CandidateStatus.Found)
             return await screen.HandleAsync(id, ct);
-        if (enrollment.Campaign.Status != CampaignStatus.Active && !enrollment.Campaign.AutoApproveCandidates)
-            return null;
-        if (await messages.GetNextUnanalyzedReplyAsync(id, ct) is not null)
+        if (enrollment.Campaign.Status == CampaignStatus.Active && await messages.GetNextUnanalyzedReplyAsync(id, ct) is not null)
             return await analyze.HandleAsync(id, ct);
-        if (!enrollment.Campaign.AutoApproveCandidates &&
-            (enrollment.ApprovalStatus != OutreachApprovalStatus.Approved || enrollment.OutreachStartedAt is null))
-            return null;
-        if (enrollment.Status == CandidateStatus.Screened)
+        if (enrollment.Status == CandidateStatus.Screened &&
+            (enrollment.Campaign.Status == CampaignStatus.Active || enrollment.Campaign.AutoApproveCandidates) &&
+            (enrollment.Campaign.AutoApproveCandidates ||
+             (enrollment.ApprovalStatus == OutreachApprovalStatus.Approved && enrollment.OutreachStartedAt.HasValue)))
             return await introduce.HandleAsync(id, ct);
-        if (enrollment.Status == CandidateStatus.Interested)
+        if (enrollment.Campaign.Status == CampaignStatus.Active && enrollment.Status == CandidateStatus.Interested &&
+            enrollment.InvitationApprovalStatus != InvitationApprovalStatus.Rejected &&
+            (enrollment.Campaign.AutoApproveInterviewInvitations || enrollment.InvitationApprovalStatus == InvitationApprovalStatus.Approved))
             return await invite.HandleAsync(id, ct);
 
         return null;

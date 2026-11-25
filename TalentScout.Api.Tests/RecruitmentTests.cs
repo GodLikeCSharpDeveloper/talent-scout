@@ -10,15 +10,16 @@ using Xunit;
 
 namespace TalentScout.Api.Tests;
 
-public sealed class RecruitmentTests(DatabaseFixture database) : IClassFixture<DatabaseFixture>
+public sealed partial class RecruitmentTests(DatabaseFixture database) : IClassFixture<DatabaseFixture>
 {
-    private async Task<(Guid Campaign, Guid Enrollment)> SetupAsync(HttpClient client)
+    private async Task<(Guid Campaign, Guid Enrollment)> SetupAsync(HttpClient client, bool autoApproveCandidates = true, bool autoApproveInterviewInvitations = true)
     {
         var campaign = await JsonAsync(
             await client.PostAsJsonAsync(
                 "/api/campaigns",
                 new
                 {
+                    autoApproveCandidates, autoApproveInterviewInvitations,
                     name = "Backend team", jobTitle = ".NET developer", description = "Build APIs", requirements = "C# and PostgreSQL",
                     searchQuery = ".NET", location = "Europe", recruiter = "Recruiter", interviewUrl = "https://calendly.com/example/interview"
                 }));

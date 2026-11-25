@@ -60,7 +60,7 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var acquired = await db.Campaigns.Where(x => x.Id == enrollment.CampaignId &&
                                                      (x.Status == CampaignStatus.Active ||
-                                                      (x.Status == CampaignStatus.Draft && x.AutoApproveCandidates)) &&
+                                                      (message.Kind == MessageKind.Initial && x.Status == CampaignStatus.Draft && x.AutoApproveCandidates)) &&
                                                      (x.NextOutboundAt == null || x.NextOutboundAt <= now))
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.NextOutboundAt, now.AddSeconds(intervalSeconds)), ct);
 
@@ -82,14 +82,20 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
 
         if (enrollment.ApprovalStatus == OutreachApprovalStatus.Excluded)
             return false;
-        if (!enrollment.Campaign.AutoApproveCandidates &&
-            (enrollment.ApprovalStatus != OutreachApprovalStatus.Approved || enrollment.OutreachStartedAt is null))
-            return false;
+        var approved = message.Kind switch
+        {
+            MessageKind.Initial => enrollment.Campaign.AutoApproveCandidates ||
+                (enrollment.ApprovalStatus == OutreachApprovalStatus.Approved && enrollment.OutreachStartedAt.HasValue),
+            MessageKind.Invitation => enrollment.InvitationApprovalStatus != InvitationApprovalStatus.Rejected &&
+                (enrollment.Campaign.AutoApproveInterviewInvitations || enrollment.InvitationApprovalStatus == InvitationApprovalStatus.Approved),
+            _ => false
+        };
+        if (!approved) return false;
 
         var canSend = message.Kind switch
         {
             MessageKind.Initial => enrollment.Status == CandidateStatus.Screened && !enrollment.HasSentInitialMessage,
-            MessageKind.Invitation => enrollment.Status == CandidateStatus.Interested && !enrollment.HasSentInvitation,
+            MessageKind.Invitation => enrollment.HasSentInitialMessage && enrollment.Status == CandidateStatus.Interested && !enrollment.HasSentInvitation,
             _ => false
         };
 
@@ -99,6 +105,14 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
             return false;
         if (await db.Interviews.AnyAsync(x => x.EnrollmentId == enrollment.Id, ct))
             return false;
+
+        // Serialize candidate decisions with delivery. A stale approval must never overwrite a newer rejection.
+        var version = enrollment.Version;
+        var enrollmentClaimed = await db.Enrollments.Where(x => x.Id == enrollment.Id && x.Version == version)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Version, Guid.NewGuid()), ct);
+        if (enrollmentClaimed == 0)
+            return false;
+        await db.Entry(enrollment).ReloadAsync(ct);
 
         var claimed = await db.Messages.Where(x => x.Id == message.Id && x.Delivery == DeliveryStatus.Pending)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Delivery, DeliveryStatus.Sending).SetProperty(x => x.AttemptedAt, now).SetProperty(x => x.Version, Guid.NewGuid()), ct);
@@ -114,13 +128,23 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
             await db.Entry(enrollment.Campaign).ReloadAsync(ct);
         }
 
-        if (enrollment.Campaign.AutoApproveCandidates && enrollment.ApprovalStatus != OutreachApprovalStatus.Approved)
+        if (message.Kind == MessageKind.Initial && enrollment.Campaign.AutoApproveCandidates && enrollment.ApprovalStatus != OutreachApprovalStatus.Approved)
         {
             // Automatic permission is distinct from manual approval and is checked again on every send.
             await db.Enrollments.Where(x => x.Id == enrollment.Id)
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.ApprovalStatus, OutreachApprovalStatus.Automatic)
                     .SetProperty(x => x.ApprovedAt, x => x.ApprovedAt ?? now)
                     .SetProperty(x => x.OutreachStartedAt, x => x.OutreachStartedAt ?? now)
+                    .SetProperty(x => x.Version, Guid.NewGuid()), ct);
+            await db.Entry(enrollment).ReloadAsync(ct);
+        }
+
+        if (message.Kind == MessageKind.Invitation && enrollment.Campaign.AutoApproveInterviewInvitations &&
+            enrollment.InvitationApprovalStatus != InvitationApprovalStatus.Approved)
+        {
+            await db.Enrollments.Where(x => x.Id == enrollment.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.InvitationApprovalStatus, InvitationApprovalStatus.Automatic)
+                    .SetProperty(x => x.InvitationApprovedAt, x => x.InvitationApprovedAt ?? now)
                     .SetProperty(x => x.Version, Guid.NewGuid()), ct);
             await db.Entry(enrollment).ReloadAsync(ct);
         }

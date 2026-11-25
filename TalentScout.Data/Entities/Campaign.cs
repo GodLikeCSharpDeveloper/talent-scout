@@ -21,6 +21,7 @@ public sealed class Campaign
     public string InterviewUrl { get; set; } = "";
     public decimal MinimumFitScore { get; set; } = 0.7m;
     public bool AutoApproveCandidates { get; set; }
+    public bool AutoApproveInterviewInvitations { get; set; }
     public CampaignStatus Status { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? NextOutboundAt { get; set; }

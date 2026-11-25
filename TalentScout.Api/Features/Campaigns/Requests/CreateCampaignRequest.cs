@@ -10,4 +10,5 @@ public sealed record CreateCampaignRequest(
     string Recruiter,
     string? InterviewUrl,
     decimal MinimumFitScore = 0.7m,
-    bool AutoApproveCandidates = false);
+    bool AutoApproveCandidates = false,
+    bool AutoApproveInterviewInvitations = false);

@@ -10,6 +10,7 @@ public sealed class GetCampaignCandidatesValidator : PaginationValidator<GetCamp
     {
         RuleFor(x => x.ApprovalStatus!.Value).IsInEnum().When(x => x.ApprovalStatus.HasValue);
         RuleFor(x => x.SearchBatchId!.Value).NotEmpty().When(x => x.SearchBatchId.HasValue);
+        RuleFor(x => x.InvitationApprovalStatus!.Value).IsInEnum().When(x => x.InvitationApprovalStatus.HasValue);
         RuleFor(x => x.Status!.Value).IsInEnum().When(x => x.Status.HasValue);
     }
 }

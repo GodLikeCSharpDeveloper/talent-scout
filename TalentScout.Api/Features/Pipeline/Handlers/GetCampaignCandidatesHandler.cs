@@ -22,7 +22,7 @@ public sealed class GetCampaignCandidatesHandler(ICampaignRepository campaigns, 
         if (!await campaigns.ExistsAsync(id, ct))
             return Result<List<CampaignCandidateResponse>>.NotFound("Campaign was not found.");
 
-        var records = await enrollments.GetCampaignPageAsync(id, request.Status, request.SearchBatchId, request.ApprovalStatus, skip, take, ct);
+        var records = await enrollments.GetCampaignPageAsync(id, request.Status, request.SearchBatchId, request.ApprovalStatus, request.InvitationApprovalStatus, skip, take, ct);
 
         return Result<List<CampaignCandidateResponse>>.Success(
             records.Select(x => new CampaignCandidateResponse(
@@ -37,6 +37,6 @@ public sealed class GetCampaignCandidatesHandler(ICampaignRepository campaigns, 
                 x.SearchBatchId,
                 x.ApprovalStatus,
                 x.ApprovedAt,
-                x.OutreachStartedAt)).ToList());
+                x.OutreachStartedAt, x.InvitationApprovalStatus, x.InvitationApprovedAt)).ToList());
     }
 }

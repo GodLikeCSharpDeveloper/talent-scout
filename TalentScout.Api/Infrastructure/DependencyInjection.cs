@@ -102,6 +102,11 @@ public static class DependencyInjection
         services.AddScoped<ExcludeCandidatesHandler>();
         services.AddScoped<IValidator<StartOutreachRequest>, StartOutreachValidator>();
         services.AddScoped<IValidator<ExcludeCandidatesRequest>, ExcludeCandidatesValidator>();
+        services.AddScoped<IValidator<SetApprovalSettingsRequest>, SetApprovalSettingsValidator>();
+        services.AddScoped<ApproveInterviewInvitationsHandler>();
+        services.AddScoped<RejectInterviewInvitationsHandler>();
+        services.AddScoped<IValidator<ApproveInterviewInvitationsRequest>, ApproveInterviewInvitationsValidator>();
+        services.AddScoped<IValidator<RejectInterviewInvitationsRequest>, RejectInterviewInvitationsValidator>();
         services.AddHealthChecks();
 
         return services;

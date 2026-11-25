@@ -27,7 +27,8 @@ public sealed class CreateCampaignHandler(ICampaignRepository campaigns, IAuditR
             Recruiter = request.Recruiter.Trim(),
             InterviewUrl = string.IsNullOrWhiteSpace(request.InterviewUrl) ? "" : new Uri(request.InterviewUrl.Trim()).AbsoluteUri,
             MinimumFitScore = request.MinimumFitScore,
-            AutoApproveCandidates = request.AutoApproveCandidates
+            AutoApproveCandidates = request.AutoApproveCandidates,
+            AutoApproveInterviewInvitations = request.AutoApproveInterviewInvitations
         };
         campaigns.Add(campaign);
         audit.Add(campaign.Id, null, "CampaignCreated");

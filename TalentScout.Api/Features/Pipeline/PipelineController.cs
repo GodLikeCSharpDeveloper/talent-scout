@@ -16,7 +16,9 @@ public sealed class PipelineController(
     GetEnrollmentStatusHandler getEnrollmentStatusHandler,
     ReviewCandidateHandler reviewCandidateHandler,
     StartOutreachHandler startOutreachHandler,
-    ExcludeCandidatesHandler excludeCandidatesHandler) : ControllerBase
+    ExcludeCandidatesHandler excludeCandidatesHandler,
+    ApproveInterviewInvitationsHandler approveInterviewInvitationsHandler,
+    RejectInterviewInvitationsHandler rejectInterviewInvitationsHandler) : ControllerBase
 {
     [HttpPost("/api/campaigns/{id:guid}/candidates")]
     public async Task<Result<EnrollmentResponse>> Enroll(Guid id, EnrollCandidateRequest request, CancellationToken ct)
@@ -52,5 +54,17 @@ public sealed class PipelineController(
     public async Task<Result<ExcludeCandidatesResponse>> ExcludeCandidates(Guid id, ExcludeCandidatesRequest request, CancellationToken ct)
     {
         return await excludeCandidatesHandler.HandleAsync(id, request, ct);
+    }
+
+    [HttpPost("/api/campaigns/{id:guid}/interview-invitations/approve")]
+    public async Task<Result<InterviewInvitationDecisionResponse>> ApproveInterviewInvitations(Guid id, ApproveInterviewInvitationsRequest request, CancellationToken ct)
+    {
+        return await approveInterviewInvitationsHandler.HandleAsync(id, request, ct);
+    }
+
+    [HttpPost("/api/campaigns/{id:guid}/interview-invitations/reject")]
+    public async Task<Result<InterviewInvitationDecisionResponse>> RejectInterviewInvitations(Guid id, RejectInterviewInvitationsRequest request, CancellationToken ct)
+    {
+        return await rejectInterviewInvitationsHandler.HandleAsync(id, request, ct);
     }
 }

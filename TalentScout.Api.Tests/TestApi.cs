@@ -70,12 +70,15 @@ public sealed class TestApi(string connectionString) : WebApplicationFactory<Pro
 public sealed class TestLinkedIn : ILinkedInGateway
 {
     public List<OutgoingMessage> Sent { get; } = [];
+    public Queue<ProfileSearchResult> SearchPages { get; } = new();
+    public List<ProfileSearch> Searches { get; } = [];
     public bool FailAfterSend { get; set; }
     public bool IsConfigured => true;
 
     public Task<ProfileSearchResult> SearchAsync(ProfileSearch search, CancellationToken ct)
     {
-        return Task.FromResult(new ProfileSearchResult([], null));
+        Searches.Add(search);
+        return Task.FromResult(SearchPages.Count > 0 ? SearchPages.Dequeue() : new ProfileSearchResult([], null));
     }
 
     public Task<SentMessage> SendAsync(OutgoingMessage message, CancellationToken ct)

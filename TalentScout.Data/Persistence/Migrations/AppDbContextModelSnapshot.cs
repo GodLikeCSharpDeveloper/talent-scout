@@ -108,6 +108,7 @@ internal class AppDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("uuid");
 
                 b.Property<bool>("AutoApproveCandidates").HasColumnType("boolean");
+                b.Property<bool>("AutoApproveInterviewInvitations").HasColumnType("boolean");
 
                 b.HasKey("Id");
 
@@ -302,6 +303,8 @@ internal class AppDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("uuid");
 
                 b.Property<int>("ApprovalStatus").HasColumnType("integer");
+                b.Property<int>("InvitationApprovalStatus").HasColumnType("integer");
+                b.Property<DateTimeOffset?>("InvitationApprovedAt").HasColumnType("timestamp with time zone");
                 b.Property<DateTimeOffset?>("ApprovedAt").HasColumnType("timestamp with time zone");
                 b.Property<DateTimeOffset?>("OutreachStartedAt").HasColumnType("timestamp with time zone");
                 b.Property<Guid?>("SearchBatchId").HasColumnType("uuid");
@@ -309,6 +312,7 @@ internal class AppDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("Id");
                 b.HasIndex("SearchBatchId");
                 b.HasIndex("CampaignId", "ApprovalStatus", "Status");
+                b.HasIndex("CampaignId", "InvitationApprovalStatus", "Status");
 
                 b.HasIndex("CandidateId");
 

@@ -14,4 +14,6 @@ public sealed record EnrollmentStatusResponse(
     Guid? SearchBatchId,
     OutreachApprovalStatus ApprovalStatus,
     DateTimeOffset? ApprovedAt,
-    DateTimeOffset? OutreachStartedAt);
+    DateTimeOffset? OutreachStartedAt,
+    InvitationApprovalStatus InvitationApprovalStatus,
+    DateTimeOffset? InvitationApprovedAt);
