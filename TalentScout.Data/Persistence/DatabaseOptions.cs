@@ -9,6 +9,7 @@ public sealed class DatabaseOptions
     public string Name { get; set; } = "talentscout";
     public string Username { get; set; } = "talentscout";
     public string Password { get; set; } = "";
+    public GssEncryptionMode GssEncryptionMode { get; set; } = GssEncryptionMode.Prefer;
 
     public string ToConnectionString()
     {
@@ -18,7 +19,8 @@ public sealed class DatabaseOptions
             Port = Port,
             Database = Name,
             Username = Username,
-            Password = Password
+            Password = Password,
+            GssEncryptionMode = GssEncryptionMode
         }.ConnectionString;
     }
 }

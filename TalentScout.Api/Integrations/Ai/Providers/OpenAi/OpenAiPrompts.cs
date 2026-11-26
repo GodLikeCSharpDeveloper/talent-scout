@@ -25,6 +25,14 @@ internal static class OpenAiPrompts
                                             Return the message as text in the required JSON object, with no commentary.
                                             """;
 
+    public const string WriteConnectionNote = """
+                                              Write a brief LinkedIn connection invitation note, at most 200 characters including spaces.
+                                              Introduce the vacancy and invite the candidate to connect. Follow the recruiter's language and tone.
+                                              Do not claim previous contact, include links, or invent terms. This is a connection request,
+                                              not the full outreach message that will be sent after acceptance.
+                                              Return only text in the required JSON object.
+                                              """;
+
     public const string ClassifyReply = """
                                         Classify the candidate's latest reply in the supplied conversation history.
                                         Return Interested only for clear interest in discussing this vacancy, NotInterested for a clear refusal,

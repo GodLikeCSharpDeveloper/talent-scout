@@ -11,5 +11,6 @@ public interface IRecruitmentAi
 {
     Task<ProfileAssessment> AssessProfileAsync(Vacancy vacancy, CandidateProfile profile, CancellationToken ct);
     Task<string> WriteIntroductionAsync(Vacancy vacancy, CandidateProfile profile, CancellationToken ct);
+    Task<string> WriteConnectionNoteAsync(Vacancy vacancy, CandidateProfile profile, CancellationToken ct);
     Task<ReplyAssessment> ClassifyReplyAsync(Vacancy vacancy, IReadOnlyList<ConversationEntry> history, CancellationToken ct);
 }

@@ -38,6 +38,7 @@ public sealed class ReceiveReplyHandler(IEnrollmentRepository enrollments, IMess
         var message = new Message { EnrollmentId = id, ExternalId = externalId, Content = content, Kind = MessageKind.Reply, Delivery = DeliveryStatus.Received, CreatedAt = receivedAt ?? DateTimeOffset.UtcNow };
         // Touch the concurrency token so an in-flight processor cannot overwrite a newer reply.
         enrollment.Version = Guid.NewGuid();
+        enrollment.NextContactAt = null;
         messages.Add(message);
         audit.Add(enrollment.CampaignId, id, "ReplyReceived");
         await unitOfWork.SaveChangesAsync(ct);

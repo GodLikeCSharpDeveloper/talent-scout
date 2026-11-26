@@ -10,6 +10,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<CandidateSearchBatch> SearchBatches => Set<CandidateSearchBatch>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
+    public DbSet<LinkedInLocationCache> LinkedInLocationCaches => Set<LinkedInLocationCache>();
     public DbSet<Enrollment> Enrollments => Set<Enrollment>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<Interview> Interviews => Set<Interview>();
@@ -19,8 +20,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     {
         model.Entity<LinkedInConversation>().HasIndex(x => x.EnrollmentId).IsUnique();
         model.Entity<LinkedInConversation>().HasIndex(x => new { x.AccountId, x.RecipientId }).IsUnique();
+        model.Entity<LinkedInConversation>().HasIndex(x => new { x.AccountId, x.NextSynchronizationAt });
         model.Entity<LinkedInConversation>().HasIndex(x => new { x.AccountId, x.ChatId }).IsUnique().HasFilter("\"ChatId\" IS NOT NULL");
-        model.Entity<LinkedInConversation>().HasOne<Enrollment>().WithMany().HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Restrict);
+        model.Entity<LinkedInConversation>().HasOne<Enrollment>().WithOne(x => x.LinkedInConversation).HasForeignKey<LinkedInConversation>(x => x.EnrollmentId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<LinkedInConversation>().Property(x => x.Version).IsConcurrencyToken();
         model.Entity<LinkedInWebhookEvent>().HasIndex(x => new { x.AccountId, x.ExternalMessageId }).IsUnique();
         model.Entity<LinkedInWebhookEvent>().HasIndex(x => new { x.ProcessedAt, x.NextAttemptAt });
@@ -29,6 +31,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         model.Entity<Enrollment>().HasOne<CandidateSearchBatch>().WithMany().HasForeignKey(x => x.SearchBatchId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Enrollment>().HasIndex(x => new { x.CampaignId, x.ApprovalStatus, x.Status });
         model.Entity<Enrollment>().HasIndex(x => new { x.CampaignId, x.InvitationApprovalStatus, x.Status });
+        model.Entity<Enrollment>().HasIndex(x => new { x.Status, x.NextContactAt });
         model.Entity<Candidate>().HasIndex(x => x.ExternalId).IsUnique();
         model.Entity<Candidate>().HasIndex(x => x.ProfileUrl).IsUnique();
         model.Entity<Candidate>().Property(x => x.ExternalId).HasMaxLength(300);
@@ -38,11 +41,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         model.Entity<Enrollment>().HasOne(x => x.Candidate).WithMany().HasForeignKey(x => x.CandidateId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Message>().HasOne<Enrollment>().WithMany().HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Message>().HasIndex(x => x.ExternalId).IsUnique();
-        model.Entity<Message>().HasIndex(x => new { x.EnrollmentId, x.Kind }).IsUnique().HasFilter("\"Kind\" <> 2");
+        model.Entity<Message>().HasIndex(x => new { x.EnrollmentId, x.CreatedAt, x.Id });
+        model.Entity<Message>().HasIndex(x => new { x.EnrollmentId, x.Kind }).IsUnique().HasFilter("\"Kind\" IN (0, 1)");
         model.Entity<Interview>().HasOne<Enrollment>().WithMany().HasForeignKey(x => x.EnrollmentId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Interview>().HasIndex(x => new { x.Provider, x.ExternalBookingId }).IsUnique();
         model.Entity<Interview>().HasIndex(x => x.EnrollmentId).IsUnique();
         model.Entity<AuditEvent>().HasIndex(x => new { x.CampaignId, x.OccurredAt });
+        model.Entity<AuditEvent>().HasIndex(x => new { x.EnrollmentId, x.OccurredAt });
         model.Entity<AuditEvent>().HasOne<Campaign>().WithMany().HasForeignKey(x => x.CampaignId).OnDelete(DeleteBehavior.Restrict);
         model.Entity<Enrollment>().Property(x => x.Version).IsConcurrencyToken();
         model.Entity<Campaign>().Property(x => x.Version).IsConcurrencyToken();

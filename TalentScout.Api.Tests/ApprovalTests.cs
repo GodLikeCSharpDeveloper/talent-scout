@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using Ardalis.Result;
 using Microsoft.Extensions.DependencyInjection;
+using TalentScout.Api.Features.Candidates.Handlers;
+using TalentScout.Api.Features.Conversations.Handlers;
 using TalentScout.Api.Features.Pipeline;
 using TalentScout.Api.Integrations.LinkedIn.Models;
 using TalentScout.Data.Entities;
@@ -12,16 +15,29 @@ namespace TalentScout.Api.Tests;
 
 public sealed partial class RecruitmentTests
 {
-    private static async Task AdvanceAsync(TestApi app, Guid enrollment)
+    private static async Task<IResult?> AdvanceAsync(TestApi app, Guid enrollment)
     {
         using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<PipelineCoordinator>().AdvanceAsync(enrollment, CancellationToken.None);
+        var services = scope.ServiceProvider;
+        var row = await services.GetRequiredService<IEnrollmentRepository>().GetDetailsAsync(enrollment, CancellationToken.None);
+
+        if (row is null || row.Campaign.Status is CampaignStatus.Paused or CampaignStatus.Stopped || row.ApprovalStatus == OutreachApprovalStatus.Excluded)
+            return null;
+        if (row.Status == CandidateStatus.Found)
+            return await services.GetRequiredService<ScreenProfileHandler>().HandleAsync(enrollment, CancellationToken.None);
+        if (row.Campaign.Status == CampaignStatus.Active && await services.GetRequiredService<IMessageRepository>().GetNextUnanalyzedReplyAsync(enrollment, CancellationToken.None) is not null)
+            return await services.GetRequiredService<AnalyzeReplyHandler>().HandleAsync(enrollment, CancellationToken.None);
+
+        return await services.GetRequiredService<SendPipelineMessagesHandler>().HandleAsync(enrollment, CancellationToken.None);
     }
 
     private static async Task<bool> IsScheduledAsync(TestApi app, Guid enrollment)
     {
         using var scope = app.Services.CreateScope();
-        var ids = await scope.ServiceProvider.GetRequiredService<IEnrollmentRepository>().GetPendingIdsAsync(10000, CancellationToken.None);
+        var repository = scope.ServiceProvider.GetRequiredService<IEnrollmentRepository>();
+        var ids = (await repository.GetPendingProfileIdsAsync(10000, CancellationToken.None))
+            .Concat(await repository.GetPendingMessageIdsAsync(10000, CancellationToken.None))
+            .Concat(await repository.GetPendingReplyIdsAsync(10000, CancellationToken.None));
 
         return ids.Contains(enrollment);
     }

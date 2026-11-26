@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using TalentScout.Api.Features.Realtime;
 using TalentScout.Api.Integrations.LinkedIn.Options;
 
 namespace TalentScout.Api.Infrastructure.Security;
@@ -11,7 +12,7 @@ public sealed class SecurityOptions
 
 public sealed class ApiKeyMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context, IOptions<SecurityOptions> options, IOptions<LinkedInOptions> linkedIn)
+    public async Task InvokeAsync(HttpContext context, IOptions<SecurityOptions> options, IOptions<LinkedInOptions> linkedIn, RealtimeTickets tickets)
     {
         if (context.Request.Path.StartsWithSegments("/health"))
         {
@@ -39,6 +40,20 @@ public sealed class ApiKeyMiddleware(RequestDelegate next)
         }
 
         var supplied = context.Request.Headers["X-Api-Key"].ToString();
+        if (context.Request.Path.StartsWithSegments("/hubs/workspace"))
+        {
+            if (tickets.Validate(context.Request.Query["access_token"].ToString()))
+            {
+                await next(context);
+
+                return;
+            }
+
+            await Results.Problem(statusCode: 401, title: "A valid realtime ticket is required.").ExecuteAsync(context);
+
+            return;
+        }
+
         var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(options.Value.ApiKey));
         var suppliedHash = SHA256.HashData(Encoding.UTF8.GetBytes(supplied));
         if (!CryptographicOperations.FixedTimeEquals(expectedHash, suppliedHash))

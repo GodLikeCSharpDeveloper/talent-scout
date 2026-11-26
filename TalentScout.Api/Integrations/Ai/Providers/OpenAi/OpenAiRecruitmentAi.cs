@@ -29,6 +29,18 @@ public sealed class OpenAiRecruitmentAi(OpenAiCompletionClient completions) : IR
         return result.Text;
     }
 
+    public async Task<string> WriteConnectionNoteAsync(Vacancy vacancy, CandidateProfile profile, CancellationToken ct)
+    {
+        var result = await completions.CompleteAsync<GeneratedIntroduction>(
+            vacancy.SystemPrompt,
+            OpenAiPrompts.WriteConnectionNote,
+            new { vacancy = new { vacancy.Title, vacancy.Description, vacancy.Requirements }, profile },
+            OpenAiResponseFormats.Introduction,
+            ct);
+
+        return result.Text;
+    }
+
     public Task<ReplyAssessment> ClassifyReplyAsync(Vacancy vacancy, IReadOnlyList<ConversationEntry> history, CancellationToken ct)
     {
         return completions.CompleteAsync<ReplyAssessment>(

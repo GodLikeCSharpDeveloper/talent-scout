@@ -36,6 +36,7 @@ public sealed class ProcessUnipileWebhookHandler(
                 }
 
                 relation.ConnectionConfirmedAt = item.OccurredAt;
+                relation.ConnectionState = "Connected";
                 var owner = await enrollments.FindAsync(relation.EnrollmentId, ct);
                 if (owner is not null)
                 {
@@ -84,6 +85,32 @@ public sealed class ProcessUnipileWebhookHandler(
             }
 
             var enrollment = await enrollments.FindAsync(conversation.EnrollmentId, ct);
+            if (enrollment is not null && !enrollment.HasSentInitialMessage &&
+                conversation.ConnectionRequestDelivery == DeliveryStatus.Sent && !string.IsNullOrWhiteSpace(conversation.ConnectionNote))
+            {
+                // A candidate can reply to the invitation note before the full introduction is sent.
+                // Record that note as the first contact so the reply is analyzed instead of sending a duplicate introduction.
+                var initial = await messages.FindOutgoingAsync(enrollment.Id, MessageKind.Initial, ct);
+                if (initial is null || initial.Delivery == DeliveryStatus.Pending)
+                {
+                    if (initial is null)
+                    {
+                        initial = new Message { EnrollmentId = enrollment.Id, Kind = MessageKind.Initial };
+                        messages.Add(initial);
+                    }
+
+                    initial.Content = conversation.ConnectionNote;
+                    initial.Delivery = DeliveryStatus.Sent;
+                    initial.SentAt = conversation.ConnectionRequestedAt;
+                    enrollment.HasSentInitialMessage = true;
+                    if (enrollment.Status == CandidateStatus.Screened)
+                        enrollment.Status = CandidateStatus.AwaitingReply;
+                    conversation.ConnectionConfirmedAt ??= item.OccurredAt;
+                    audit.Add(enrollment.CampaignId, enrollment.Id, "ConnectionNoteReplyReceived");
+                    await unitOfWork.SaveChangesAsync(ct);
+                }
+            }
+
             if (enrollment is null || !enrollment.HasSentInitialMessage)
             {
                 await inbox.DeferAsync(id, "InitialDeliveryNotConfirmed", ct);

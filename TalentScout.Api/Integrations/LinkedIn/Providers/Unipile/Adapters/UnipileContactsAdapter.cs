@@ -11,11 +11,19 @@ public sealed class UnipileContactsAdapter(IUnipileProfilesApi profiles, IOption
     {
         var profile = await profiles.GetAsync(options.Value.AccountId, recipientId, ct);
         var connected = profile.IsRelationship || profile.NetworkDistance == "FIRST_DEGREE";
+        var invitationStatus = profile.Invitation switch
+        {
+            { Type: "SENT", Status: "PENDING" } => ConnectionInvitationStatus.Pending,
+            { Type: "SENT", Status: "IGNORED" } => ConnectionInvitationStatus.Declined,
+            { Type: "SENT", Status: "WITHDRAWN" } => ConnectionInvitationStatus.Withdrawn,
+            _ => (ConnectionInvitationStatus?)null
+        };
 
         return new LinkedInContactStatus(
             connected || options.Value.UseInMail,
             connected,
-            profile.Invitation is { Type: "SENT", Status: "PENDING" });
+            invitationStatus == ConnectionInvitationStatus.Pending,
+            SentInvitationStatus: invitationStatus);
     }
 
     public async Task<string> SendInvitationAsync(string recipientId, string? note, CancellationToken ct)

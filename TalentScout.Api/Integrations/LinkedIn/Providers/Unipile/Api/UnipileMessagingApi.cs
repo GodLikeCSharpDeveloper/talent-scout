@@ -5,6 +5,20 @@ namespace TalentScout.Api.Integrations.LinkedIn.Providers.Unipile.Api;
 
 public sealed class UnipileMessagingApi(IUnipileHttpClient http) : IUnipileMessagingApi
 {
+    public Task<UnipilePage<UnipileChatMessage>> GetMessagesAsync(string accountId, string chatId, string? cursor, CancellationToken ct)
+    {
+        return http.GetAsync<UnipilePage<UnipileChatMessage>>(
+            $"chats/{Uri.EscapeDataString(chatId)}/messages?account_id={Uri.EscapeDataString(accountId)}&limit=100" + Cursor(cursor),
+            ct);
+    }
+
+    public Task<UnipilePage<UnipileChatResponse>> GetChatsForAttendeeAsync(string accountId, string attendeeId, string? cursor, CancellationToken ct)
+    {
+        return http.GetAsync<UnipilePage<UnipileChatResponse>>(
+            $"chat_attendees/{Uri.EscapeDataString(attendeeId)}/chats?account_id={Uri.EscapeDataString(accountId)}&limit=100" + Cursor(cursor),
+            ct);
+    }
+
     public Task<UnipileChatResponse> GetChatAsync(string accountId, string chatId, CancellationToken ct)
     {
         return http.GetAsync<UnipileChatResponse>(
@@ -32,5 +46,10 @@ public sealed class UnipileMessagingApi(IUnipileHttpClient http) : IUnipileMessa
             path = $"chats/{Uri.EscapeDataString(request.ChatId)}/messages";
 
         return await http.SendAsync<UnipileSendResponse>(HttpMethod.Post, path, form, ct);
+    }
+
+    private static string Cursor(string? cursor)
+    {
+        return string.IsNullOrEmpty(cursor) ? "" : "&cursor=" + Uri.EscapeDataString(cursor);
     }
 }

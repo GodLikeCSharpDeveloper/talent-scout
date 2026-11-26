@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using TalentScout.Api.Features.Pipeline.Handlers;
 using TalentScout.Api.Features.Pipeline.Requests;
 using TalentScout.Api.Features.Pipeline.Responses;
+using TalentScout.Data.ReadModels;
 
 namespace TalentScout.Api.Features.Pipeline;
 
@@ -13,6 +14,7 @@ namespace TalentScout.Api.Features.Pipeline;
 public sealed class PipelineController(
     EnrollCandidateHandler enrollCandidateHandler,
     GetCampaignCandidatesHandler getCampaignCandidatesHandler,
+    GetCampaignCandidatePageHandler getCampaignCandidatePageHandler,
     GetEnrollmentStatusHandler getEnrollmentStatusHandler,
     ReviewCandidateHandler reviewCandidateHandler,
     StartOutreachHandler startOutreachHandler,
@@ -30,6 +32,12 @@ public sealed class PipelineController(
     public async Task<Result<List<CampaignCandidateResponse>>> GetCandidates(Guid id, [FromQuery] GetCampaignCandidatesRequest request, CancellationToken ct)
     {
         return await getCampaignCandidatesHandler.HandleAsync(id, request, ct);
+    }
+
+    [HttpGet("/api/campaigns/{id:guid}/candidates/page")]
+    public Task<Result<CampaignCandidatePage>> GetCandidatePage(Guid id, [FromQuery] GetCampaignCandidatesRequest request, CancellationToken ct)
+    {
+        return getCampaignCandidatePageHandler.HandleAsync(id, request, ct);
     }
 
     [HttpGet("{id:guid}")]

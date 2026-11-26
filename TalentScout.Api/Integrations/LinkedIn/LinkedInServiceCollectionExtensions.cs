@@ -51,6 +51,7 @@ public static class LinkedInServiceCollectionExtensions
             services.AddScoped<ILinkedInProfiles, UnipileProfilesAdapter>();
             services.AddScoped<ILinkedInContacts, UnipileContactsAdapter>();
             services.AddScoped<ILinkedInConversations, UnipileConversationsAdapter>();
+            services.AddScoped<ILinkedInSynchronization, UnipileSynchronizationAdapter>();
             services.AddScoped<ILinkedInSearchParameters, UnipileSearchParametersAdapter>();
         }
         else
@@ -59,6 +60,7 @@ public static class LinkedInServiceCollectionExtensions
             services.AddScoped<ILinkedInProfiles>(provider => provider.GetRequiredService<DisabledLinkedInGateway>());
             services.AddScoped<ILinkedInContacts>(provider => provider.GetRequiredService<DisabledLinkedInGateway>());
             services.AddScoped<ILinkedInConversations>(provider => provider.GetRequiredService<DisabledLinkedInGateway>());
+            services.AddScoped<ILinkedInSynchronization>(provider => provider.GetRequiredService<DisabledLinkedInGateway>());
             services.AddScoped<ILinkedInSearchParameters>(provider => provider.GetRequiredService<DisabledLinkedInGateway>());
         }
 

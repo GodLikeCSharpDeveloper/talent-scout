@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TalentScout.Api.Integrations.LinkedIn.Providers.Unipile.Models;
 
 namespace TalentScout.Api.Integrations.LinkedIn.Providers.Unipile.Http;
 
@@ -34,10 +35,11 @@ public sealed class UnipileHttpClient(HttpClient http) : IUnipileHttpClient
             if (!response.IsSuccessStatusCode)
             {
                 var status = (int)response.StatusCode;
+                var reason = await ReadErrorAsync(response.Content, ct);
 
                 throw new ApiException(
                     status is 408 or 429 or >= 500 ? 503 : status == 404 ? 404 : 409,
-                    $"Unipile rejected the operation (HTTP {status}). Check account connection, permissions and provider limits.");
+                    $"Unipile rejected the operation (HTTP {status}). {reason}");
             }
 
             return await response.Content.ReadFromJsonAsync<T>(JsonOptions, ct)
@@ -55,5 +57,25 @@ public sealed class UnipileHttpClient(HttpClient http) : IUnipileHttpClient
         {
             throw new ApiException(503, "Unipile request timed out.");
         }
+    }
+
+    private static async Task<string> ReadErrorAsync(HttpContent content, CancellationToken ct)
+    {
+        try
+        {
+            var error = await content.ReadFromJsonAsync<UnipileErrorResponse>(JsonOptions, ct);
+            var parts = new[] { error?.Type, error?.Title, error?.Detail }
+                .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct();
+            var reason = string.Join(" ", parts);
+
+            if (reason.Length > 0)
+                return string.Concat(reason.Take(800).Select(x => char.IsControl(x) ? ' ' : x));
+        }
+        catch (JsonException)
+        {
+            // HTML or malformed upstream errors must retain their original HTTP status.
+        }
+
+        return "Check account connection, permissions and provider limits.";
     }
 }

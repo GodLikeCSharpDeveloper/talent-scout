@@ -9,8 +9,11 @@ public interface IEnrollmentRepository
     Task<Enrollment?> FindForCandidateAsync(Guid campaignId, Guid candidateId, CancellationToken ct);
     Task<Enrollment?> GetDetailsAsync(Guid id, CancellationToken ct);
     Task<bool> ExistsAsync(Guid id, CancellationToken ct);
-    Task<List<CampaignCandidateRecord>> GetCampaignPageAsync(Guid campaignId, CandidateStatus? status, Guid? searchBatchId, OutreachApprovalStatus? approvalStatus, InvitationApprovalStatus? invitationApprovalStatus, int skip, int take, CancellationToken ct);
-    Task<List<Guid>> GetPendingIdsAsync(int limit, CancellationToken ct);
+    Task<List<CampaignCandidateRecord>> GetCampaignPageAsync(CampaignCandidateQuery query, int skip, int take, CancellationToken ct);
+    Task<CampaignCandidatePage> GetCandidatePageAsync(CampaignCandidateQuery query, int page, int pageSize, CancellationToken ct);
+    Task<List<Guid>> GetPendingProfileIdsAsync(int limit, CancellationToken ct);
+    Task<List<Guid>> GetPendingMessageIdsAsync(int limit, CancellationToken ct);
+    Task<List<Guid>> GetPendingReplyIdsAsync(int limit, CancellationToken ct);
     Task ScheduleNextAttemptAsync(Guid id, DateTimeOffset nextAttempt, CancellationToken ct);
     Task ReloadAsync(Enrollment enrollment, CancellationToken ct);
     Task<bool> TryAddAsync(Enrollment enrollment, CancellationToken ct);

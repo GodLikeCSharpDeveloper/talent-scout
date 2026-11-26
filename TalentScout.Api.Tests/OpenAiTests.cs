@@ -162,6 +162,19 @@ public sealed class OpenAiTests(OpenAiHttpFixture upstream) : IClassFixture<Open
     }
 
     [Fact]
+    public async Task Connection_note_uses_strict_output_campaign_prompt_and_short_note_task()
+    {
+        var note = await upstream.CreateAi("connection-note").WriteConnectionNoteAsync(Vacancy, Profile, CancellationToken.None);
+        Assert.NotEmpty(note);
+        var request = Assert.Single(await upstream.RequestsAsync(), x => x!["model"]!.ToString() == "connection-note");
+        Assert.True(request!["response_format"]!["json_schema"]!["strict"]!.GetValue<bool>());
+        var messages = request["messages"]!.AsArray();
+        Assert.Contains(messages, x => x!["role"]!.ToString() == "system" && x["content"]!.ToString().Contains("200 characters"));
+        Assert.Contains(messages, x => x!["role"]!.ToString() == "system" && x["content"]!.ToString() == Vacancy.SystemPrompt);
+        Assert.Contains(Profile.Experience, messages.Last()!["content"]!.ToString());
+    }
+
+    [Fact]
     public async Task Unknown_interest_enum_is_rejected()
     {
         var exception = await Assert.ThrowsAsync<ApiException>(() => upstream.CreateAi("invalid-enum").ClassifyReplyAsync(Vacancy, [new ConversationEntry("candidate", "Hi")], CancellationToken.None));

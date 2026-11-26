@@ -1,3 +1,4 @@
+using TalentScout.Api.Features.Realtime;
 using TalentScout.Api.Infrastructure;
 using TalentScout.Api.Infrastructure.Security;
 using TalentScout.Data;
@@ -19,6 +20,7 @@ public class Program
         app.MapHealthChecks("/health");
         app.MapOpenApi();
         app.MapControllers();
+        app.MapHub<WorkspaceHub>("/hubs/workspace");
         await app.RunAsync();
     }
 }

@@ -4,6 +4,7 @@ using FluentValidation;
 using TalentScout.Api.Features.Candidates.Requests;
 using TalentScout.Api.Features.Candidates.Responses;
 using TalentScout.Api.Features.Pipeline.Handlers;
+using TalentScout.Api.Features.Realtime;
 using TalentScout.Api.Integrations.LinkedIn.Abstractions;
 using TalentScout.Data.Entities;
 using TalentScout.Data.Repositories;
@@ -21,7 +22,8 @@ public sealed class SearchCandidatesHandler(
     CandidateImporter importer,
     CandidateEnroller enroller,
     IValidator<SearchCandidatesRequest> validator,
-    ILogger<SearchCandidatesHandler> logger)
+    ILogger<SearchCandidatesHandler> logger,
+    WorkspaceEvents events)
 {
     public async Task<Result<SearchCandidatesResponse>> HandleAsync(Guid id, SearchCandidatesRequest request, CancellationToken ct)
     {
@@ -40,6 +42,7 @@ public sealed class SearchCandidatesHandler(
         var batch = new CandidateSearchBatch { CampaignId = id, RequestedCount = request.Limit, NextCursor = request.Cursor };
         batches.Add(batch);
         await unitOfWork.SaveChangesAsync(ct);
+        await events.ProgressAsync(id, null, "Search", "Running", 0, 0);
         var ids = new List<Guid>();
         var seenCandidates = new HashSet<Guid>();
         var visitedCursors = new HashSet<string>(StringComparer.Ordinal);
@@ -58,7 +61,7 @@ public sealed class SearchCandidatesHandler(
                 }
 
                 var pageLimit = Math.Min(request.Limit - ids.Count, request.MaxProfilesToScan - batch.ScannedCount);
-                var page = await search.HandleAsync(campaign.SearchQuery, campaign.Location, pageLimit, cursor, ct);
+                var page = await search.HandleAsync(campaign.SearchQuery, campaign.Location, pageLimit, cursor, ct, campaign.LocationId);
 
                 if (page is null || page.Profiles is null || page.Profiles.Count > pageLimit)
                     throw new ApiException(502, "LinkedIn returned an invalid search page.");
@@ -96,6 +99,7 @@ public sealed class SearchCandidatesHandler(
                     ids.Add(enrollment.Id);
                 }
 
+                await events.ProgressAsync(id, null, "Search", "Running", ids.Count, batch.ScannedCount);
                 cursor = page.NextCursor;
                 batch.NextCursor = cursor;
                 if (ids.Count == request.Limit)
@@ -122,6 +126,8 @@ public sealed class SearchCandidatesHandler(
             batch.CompletedAt = DateTimeOffset.UtcNow;
             audit.Add(id, null, "CandidateSearchCompleted", $"Batch={batch.Id}; Added={ids.Count}; Skipped={batch.SkippedCount}; Reason={reason}");
             await unitOfWork.SaveChangesAsync(ct);
+            await events.ProgressAsync(id, null, "Search", "Completed", ids.Count, batch.ScannedCount);
+            await events.NotifyAsync(new WorkspaceNotification(batch.Id, "SearchCompleted", id, campaign.Name, ids.Count, campaign.AutoApproveCandidates));
 
             return Result<SearchCandidatesResponse>.Success(
                 new SearchCandidatesResponse(
@@ -137,6 +143,7 @@ public sealed class SearchCandidatesHandler(
         }
         catch
         {
+            await events.ProgressAsync(id, null, "Search", "Failed", ids.Count, batch.ScannedCount);
             // Individual imports are durable. Record a partial failed batch without replaying failed tracked inserts.
             try
             {

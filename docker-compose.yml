@@ -23,6 +23,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
       Database__Host: postgres
+      Database__GssEncryptionMode: Disable
       Database__Password: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       Security__ApiKey: ${API_KEY:?Set API_KEY to a random value of at least 32 characters}
       LinkedIn__Provider: Unipile
@@ -34,10 +35,16 @@ services:
       LinkedIn__UseInMail: ${LINKEDIN_USE_INMAIL:-false}
       Ai__ApiKey: ${AI_API_KEY:-}
       Ai__Model: ${AI_MODEL:-gpt-4.1-mini}
+      Ai__MinimumInterestConfidence: ${AI_MINIMUM_INTEREST_CONFIDENCE:-0.8}
       Scheduling__DefaultInterviewUrl: ${INTERVIEW_URL:-}
       Scheduling__ApiKey: ${SCHEDULING_API_KEY:-}
       Scheduling__WebhookSigningKey: ${SCHEDULING_WEBHOOK_SIGNING_KEY:-}
       Pipeline__WorkerEnabled: ${PIPELINE_WORKER_ENABLED:-false}
+      Pipeline__PollIntervalSeconds: ${PIPELINE_POLL_INTERVAL_SECONDS:-30}
+      Pipeline__BatchSize: ${PIPELINE_BATCH_SIZE:-10}
+      Pipeline__SynchronizationIntervalMinutes: ${PIPELINE_SYNC_INTERVAL_MINUTES:-10}
+      Pipeline__MinimumSendIntervalSeconds: ${PIPELINE_MINIMUM_SEND_INTERVAL_SECONDS:-60}
+      Pipeline__MaximumDailyMessagesPerCampaign: ${PIPELINE_MAXIMUM_DAILY_MESSAGES_PER_CAMPAIGN:-50}
     ports:
       - "127.0.0.1:${API_PORT:-5262}:8080"
     depends_on:

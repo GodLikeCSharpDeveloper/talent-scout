@@ -4,7 +4,8 @@ public enum MessageKind
 {
     Initial,
     Invitation,
-    Reply
+    Reply,
+    Manual
 }
 
 public enum DeliveryStatus
@@ -36,6 +37,8 @@ public sealed class Message
     public decimal? Confidence { get; set; }
     public string? Analysis { get; set; }
     public bool Analyzed { get; set; }
+    public bool IsDeleted { get; set; }
+    public bool IsEdited { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? AttemptedAt { get; set; }
     public DateTimeOffset? SentAt { get; set; }

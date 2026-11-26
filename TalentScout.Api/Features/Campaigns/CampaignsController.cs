@@ -17,7 +17,8 @@ public sealed class CampaignsController(
     GetCampaignHandler getCampaignHandler,
     ChangeCampaignStatusHandler changeCampaignStatusHandler,
     SetApprovalSettingsHandler setApprovalSettingsHandler,
-    SetCampaignAiSettingsHandler setCampaignAiSettingsHandler) : ControllerBase
+    SetCampaignAiSettingsHandler setCampaignAiSettingsHandler,
+    UpdateCampaignHandler updateCampaignHandler) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(Campaign), StatusCodes.Status201Created)]
@@ -32,6 +33,12 @@ public sealed class CampaignsController(
     public async Task<Result<List<Campaign>>> GetAll([FromQuery] PaginationRequest request, CancellationToken ct)
     {
         return await getCampaignsHandler.HandleAsync(request, ct);
+    }
+
+    [HttpPut("{id:guid}")]
+    public Task<Result<Campaign>> Update(Guid id, CreateCampaignRequest request, CancellationToken ct)
+    {
+        return updateCampaignHandler.HandleAsync(id, request, ct);
     }
 
     [HttpGet("{id:guid}")]

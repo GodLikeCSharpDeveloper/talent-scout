@@ -3,7 +3,7 @@ using TalentScout.Api.Integrations.LinkedIn.Models;
 
 namespace TalentScout.Api.Integrations.LinkedIn.Providers.Disabled;
 
-public sealed class DisabledLinkedInGateway : ILinkedInGateway, ILinkedInContacts, ILinkedInProfiles, ILinkedInConversations, ILinkedInSearchParameters
+public sealed class DisabledLinkedInGateway : ILinkedInGateway, ILinkedInContacts, ILinkedInProfiles, ILinkedInConversations, ILinkedInSearchParameters, ILinkedInSynchronization
 {
     public Task<LinkedInContactStatus> GetStatusAsync(string recipientId, CancellationToken ct)
     {
@@ -36,6 +36,11 @@ public sealed class DisabledLinkedInGateway : ILinkedInGateway, ILinkedInContact
     }
 
     public Task<IReadOnlyList<LinkedInSearchLocation>> FindLocationsAsync(string query, CancellationToken ct)
+    {
+        throw Unavailable();
+    }
+
+    public Task<LinkedInSyncSnapshot> ReadAsync(string recipientId, string? chatId, CancellationToken ct)
     {
         throw Unavailable();
     }

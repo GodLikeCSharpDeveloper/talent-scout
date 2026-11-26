@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Ardalis.Result.AspNetCore;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using TalentScout.Api.Features.Audit.Handlers;
 using TalentScout.Api.Features.Campaigns.Handlers;
 using TalentScout.Api.Features.Campaigns.Requests;
@@ -22,6 +23,7 @@ using TalentScout.Api.Features.Pipeline;
 using TalentScout.Api.Features.Pipeline.Handlers;
 using TalentScout.Api.Features.Pipeline.Requests;
 using TalentScout.Api.Features.Pipeline.Validators;
+using TalentScout.Api.Features.Realtime;
 using TalentScout.Api.Infrastructure.Http;
 using TalentScout.Api.Infrastructure.Security;
 using TalentScout.Api.Integrations.Ai;
@@ -41,6 +43,12 @@ public static class DependencyInjection
     {
         services.AddControllers(options => options.AddResultConvention(ResultConventionConfiguration.Configure)).AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
         services.AddProblemDetails();
+        services.AddSignalR(options => options.EnableDetailedErrors = false);
+        services.AddSingleton<RealtimeTickets>();
+        services.AddSingleton<WorkspaceEvents>();
+        services.AddScoped<ISaveChangesInterceptor, WorkspaceChangeInterceptor>();
+        services.AddScoped<UpdateCampaignHandler>();
+        services.AddScoped<LinkedInSynchronizationService>();
         services.AddExceptionHandler<ApiExceptionHandler>();
         services.AddOpenApi(options => options.AddDocumentTransformer<ApiDocumentTransformer>());
         services.AddOptions<SecurityOptions>().BindConfiguration("Security")
@@ -49,6 +57,7 @@ public static class DependencyInjection
         services.AddAiIntegration(configuration);
         services.AddOptions<SchedulingOptions>().BindConfiguration("Scheduling");
         services.AddOptions<PipelineOptions>().BindConfiguration("Pipeline")
+            .Validate(x => x.SynchronizationIntervalMinutes is >= 1 and <= 1440, "Synchronization interval must be between 1 and 1440 minutes.")
             .Validate(x => x.PollIntervalSeconds >= 1 && x.BatchSize is >= 1 and <= 100 && x.MinimumSendIntervalSeconds >= 1 && x.MaximumDailyMessagesPerCampaign >= 1, "Invalid pipeline limits.")
             .Validate(x => !x.WorkerEnabled || (configuration["LinkedIn:Provider"] == "Unipile" && !string.IsNullOrWhiteSpace(configuration["LinkedIn:ApiKey"]) && !string.IsNullOrWhiteSpace(configuration["Ai:ApiKey"])), "Configure real adapters before enabling the worker.")
             .ValidateOnStart();
@@ -60,10 +69,13 @@ public static class DependencyInjection
         services.AddScoped<ReplyAnalyzer>();
         services.AddScoped<IntroductionMessageFactory>();
         services.AddScoped<InterviewInvitationFactory>();
-        services.AddScoped<PipelineCoordinator>();
+        services.AddScoped<SendPipelineMessagesHandler>();
+        services.AddSingleton<PipelineExecutionService>();
         services.AddScoped<MessageDispatcher>();
         services.AddHostedService<LinkedInWebhookStartupService>();
-        services.AddHostedService<PipelineWorker>();
+        services.AddHostedService<ProfileScreeningWorker>();
+        services.AddHostedService<MessageSendingWorker>();
+        services.AddHostedService<ReplyAnalysisWorker>();
 
         services.AddScoped<IValidator<CreateCampaignRequest>, CreateCampaignValidator>();
         services.AddScoped<CreateCampaignHandler>();
@@ -77,6 +89,7 @@ public static class DependencyInjection
         services.AddScoped<SearchCandidatePageHandler>();
         services.AddScoped<EnrollCandidateHandler>();
         services.AddScoped<GetCampaignCandidatesHandler>();
+        services.AddScoped<GetCampaignCandidatePageHandler>();
         services.AddScoped<GetEnrollmentStatusHandler>();
         services.AddScoped<ScreenProfileHandler>();
         services.AddScoped<SendIntroductionHandler>();
@@ -118,6 +131,10 @@ public static class DependencyInjection
         services.AddScoped<GetLinkedInConversationHandler>();
         services.AddScoped<BindLinkedInConversationHandler>();
         services.AddScoped<SendConnectionRequestHandler>();
+        services.AddScoped<StartFirstContact>();
+        services.AddScoped<SynchronizeLinkedInHandler>();
+        services.AddScoped<RetryLinkedInOutreachHandler>();
+        services.AddHostedService<LinkedInSynchronizationWorker>();
         services.AddScoped<GetLinkedInContactStatusHandler>();
         services.AddScoped<ImportLinkedInProfileHandler>();
         services.AddScoped<ReceiveUnipileWebhookHandler>();
@@ -125,6 +142,7 @@ public static class DependencyInjection
         services.AddScoped<GetUnipileWebhookEventsHandler>();
         services.AddScoped<GetLinkedInIntegrationStatusHandler>();
         services.AddScoped<GetLinkedInAccountsHandler>();
+        services.AddScoped<GetLinkedInLocationsHandler>();
         services.AddScoped<RegisterLinkedInWebhooksHandler>();
         services.AddScoped<IValidator<RegisterLinkedInWebhooksRequest>, RegisterLinkedInWebhooksValidator>();
         services.AddScoped<IValidator<BindLinkedInConversationRequest>, BindLinkedInConversationValidator>();

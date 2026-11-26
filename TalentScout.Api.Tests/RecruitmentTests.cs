@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using Ardalis.Result;
 using Microsoft.Extensions.DependencyInjection;
-using TalentScout.Api.Features.Pipeline;
 using TalentScout.Data.Entities;
 using TalentScout.Data.Persistence;
 using Xunit;
@@ -405,15 +404,14 @@ public sealed partial class RecruitmentTests(DatabaseFixture database) : IClassF
     }
 
     [Fact]
-    public async Task Background_coordinator_calls_the_same_explicit_stage_handlers()
+    public async Task Background_steps_call_the_same_explicit_stage_handlers()
     {
         await using var app = new TestApi(database.ConnectionString);
         using var client = await app.StartAsync();
         var (_, enrollment) = await SetupAsync(client);
         using (var scope = app.Services.CreateScope())
         {
-            var result = await scope.ServiceProvider.GetRequiredService<PipelineCoordinator>()
-                .AdvanceAsync(enrollment, CancellationToken.None);
+            var result = await AdvanceAsync(app, enrollment);
             Assert.Equal(ResultStatus.Ok, result!.Status);
         }
 
@@ -421,8 +419,7 @@ public sealed partial class RecruitmentTests(DatabaseFixture database) : IClassF
         Assert.Empty(app.LinkedIn.Sent);
         using (var scope = app.Services.CreateScope())
         {
-            var result = await scope.ServiceProvider.GetRequiredService<PipelineCoordinator>()
-                .AdvanceAsync(enrollment, CancellationToken.None);
+            var result = await AdvanceAsync(app, enrollment);
             Assert.Equal(ResultStatus.Ok, result!.Status);
         }
 

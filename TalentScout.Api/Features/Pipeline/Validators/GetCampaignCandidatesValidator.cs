@@ -8,6 +8,8 @@ public sealed class GetCampaignCandidatesValidator : PaginationValidator<GetCamp
 {
     public GetCampaignCandidatesValidator()
     {
+        RuleFor(x => x.Search).MaximumLength(200);
+        RuleFor(x => x.SortBy).IsInEnum();
         RuleFor(x => x.ApprovalStatus!.Value).IsInEnum().When(x => x.ApprovalStatus.HasValue);
         RuleFor(x => x.SearchBatchId!.Value).NotEmpty().When(x => x.SearchBatchId.HasValue);
         RuleFor(x => x.InvitationApprovalStatus!.Value).IsInEnum().When(x => x.InvitationApprovalStatus.HasValue);

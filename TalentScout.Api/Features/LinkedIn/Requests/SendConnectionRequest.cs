@@ -1,3 +1,3 @@
 namespace TalentScout.Api.Features.LinkedIn.Requests;
 
-public sealed record SendConnectionRequest(string? Note = null);
+public sealed record SendConnectionRequest(string? Note = null, bool GenerateNote = false);

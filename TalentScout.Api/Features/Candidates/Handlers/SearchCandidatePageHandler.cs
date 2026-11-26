@@ -14,7 +14,7 @@ public sealed class SearchCandidatePageHandler(
     IDataProtectionProvider protection,
     IOptions<LinkedInOptions> options)
 {
-    public async Task<ProfileSearchResult> HandleAsync(string query, string location, int limit, string? cursor, CancellationToken ct)
+    public async Task<ProfileSearchResult> HandleAsync(string query, string location, int limit, string? cursor, CancellationToken ct, string? locationId = null)
     {
         var protector = protection.CreateProtector("TalentScout.CandidateSearch.v1");
         CandidateSearchCursor? state = null;
@@ -30,12 +30,14 @@ public sealed class SearchCandidatePageHandler(
             }
 
             if (state is null || state.AccountId != options.Value.AccountId || state.Query != query || state.Location != location ||
-                state.ExpiresAt < DateTimeOffset.UtcNow || state.RemainingProfiles is null || state.LocationIds is null)
+                state.ExpiresAt < DateTimeOffset.UtcNow || state.RemainingProfiles is null || state.LocationIds is null || (locationId is not null && !state.LocationIds.SequenceEqual(new[] { locationId })))
                 throw new ApiException(400, "The cursor does not match this search or has expired.");
         }
 
         var locationIds = state?.LocationIds ?? [];
-        if (state is null && !string.IsNullOrWhiteSpace(location))
+        if (state is null && !string.IsNullOrWhiteSpace(locationId))
+            locationIds = [locationId];
+        else if (state is null && !string.IsNullOrWhiteSpace(location))
         {
             var locations = await parameters.FindLocationsAsync(location, ct);
             var selected = locations.FirstOrDefault(x => string.Equals(x.Name, location, StringComparison.OrdinalIgnoreCase))

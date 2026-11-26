@@ -21,6 +21,7 @@ public sealed class Enrollment
     public Campaign Campaign { get; set; } = null!;
     public Guid CandidateId { get; set; }
     public Candidate Candidate { get; set; } = null!;
+    public LinkedInConversation? LinkedInConversation { get; set; }
     public Guid? SearchBatchId { get; set; }
     public OutreachApprovalStatus ApprovalStatus { get; set; }
     public DateTimeOffset? ApprovedAt { get; set; }

@@ -55,4 +55,10 @@ public sealed class CandidatesController(
     {
         return await getSearchBatchesHandler.HandleAsync(id, request, ct);
     }
+
+    [HttpPost("/api/enrollments/{id:guid}/rescreen-profile")]
+    public Task<Result<ScreenProfileResponse>> Reassess(Guid id, CancellationToken ct)
+    {
+        return screenProfileHandler.HandleAsync(id, ct, true);
+    }
 }

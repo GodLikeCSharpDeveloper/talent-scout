@@ -34,6 +34,10 @@ public sealed class GetLinkedInConversationHandler(
                     LinkedInConversationUrl.Create(item.ProviderChatId),
                     item.ConnectionRequestDelivery,
                     item.InvitationId,
-                    item.ConnectionConfirmedAt));
+                    item.ConnectionConfirmedAt,
+                    item.ConnectionNote,
+                    item.ConnectionState,
+                    item.LastSynchronizedAt,
+                    item.SynchronizationError));
     }
 }

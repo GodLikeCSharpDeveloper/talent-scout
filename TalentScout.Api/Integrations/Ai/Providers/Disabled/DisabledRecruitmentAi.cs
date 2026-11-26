@@ -16,6 +16,11 @@ public sealed class DisabledRecruitmentAi : IRecruitmentAi
         throw Unavailable();
     }
 
+    public Task<string> WriteConnectionNoteAsync(Vacancy vacancy, CandidateProfile profile, CancellationToken ct)
+    {
+        throw Unavailable();
+    }
+
     public Task<ReplyAssessment> ClassifyReplyAsync(Vacancy vacancy, IReadOnlyList<ConversationEntry> history, CancellationToken ct)
     {
         throw Unavailable();

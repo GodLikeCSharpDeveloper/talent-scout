@@ -14,6 +14,7 @@ public sealed class CreateCampaignValidator : AbstractValidator<CreateCampaignRe
         RuleFor(x => x.SystemPrompt).NotNull().MaximumLength(20000);
         RuleFor(x => x.SearchQuery).NotEmpty().MaximumLength(1000);
         RuleFor(x => x.Location).NotEmpty().MaximumLength(300);
+        RuleFor(x => x.LocationId).MaximumLength(300);
         RuleFor(x => x.Recruiter).NotEmpty().MaximumLength(300);
         RuleFor(x => x.MinimumFitScore).InclusiveBetween(0, 1);
         RuleFor(x => x.InterviewUrl).MaximumLength(2000).Must(BeHttpsUrl)

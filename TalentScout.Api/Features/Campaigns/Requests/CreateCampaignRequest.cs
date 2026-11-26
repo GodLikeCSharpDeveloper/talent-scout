@@ -12,4 +12,5 @@ public sealed record CreateCampaignRequest(
     decimal MinimumFitScore = 0.7m,
     bool AutoApproveCandidates = false,
     bool AutoApproveInterviewInvitations = false,
-    string SystemPrompt = "");
+    string SystemPrompt = "",
+    string? LocationId = null);

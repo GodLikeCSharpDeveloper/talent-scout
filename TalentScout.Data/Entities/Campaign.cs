@@ -18,6 +18,7 @@ public sealed class Campaign
     public string SystemPrompt { get; set; } = "";
     public string SearchQuery { get; set; } = "";
     public string Location { get; set; } = "";
+    public string? LocationId { get; set; }
     public string Recruiter { get; set; } = "";
     public string InterviewUrl { get; set; } = "";
     public decimal MinimumFitScore { get; set; } = 0.7m;

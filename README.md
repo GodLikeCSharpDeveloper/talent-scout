@@ -44,7 +44,7 @@ TalentScout.Api.Tests/
 docs/openapi.json
 ```
 
-В каждой фиче находятся тонкий контроллер, папки `Handlers`, `Requests` и при необходимости `Responses`, API-контракты. Сущности находятся в отдельной библиотеке `TalentScout.Data`. Контроллеры не используют DbContext: они вызывают хендлеры и возвращают `Ardalis.Result<T>`. Атрибут библиотеки `[TranslateResultToActionResult]` преобразует результат в HTTP-ответ; `ResultConvention` задаёт коды и формат Problem Details. Ожидаемые ошибки преобразуются в Problem Details с кодами 400/401/404/409/502/503; неожиданные исключения обрабатываются централизованно. Создание кампании возвращает 201 и Location; остальные успешные операции — 200. Общая инфраструктура ограничена хранением, конфигурацией и обработкой ошибок. `PipelineCoordinator` используется только фоновым worker и выбирает явный хендлер следующего этапа. HTTP-команды не выбирают действие по текущему статусу: каждая выполняет только указанную операцию. Хендлеры внедряются через конструкторы контроллеров; HTTP-методы принимают только маршрут, query/body и CancellationToken. Доступ к данным выполняется через шесть специализированных репозиториев: интерфейсы находятся в `TalentScout.Data/Repositories/Contracts`, реализации EF Core — в `TalentScout.Data/Repositories`. Хендлеры и worker не зависят от DbContext и не выполняют LINQ-запросов к базе. `IUnitOfWork` сохраняет изменения и аудит общей транзакцией; атомарный захват отправки и SQL для лимитов инкапсулированы в репозитории сообщений. Репозитории возвращают готовые сущности и DTO, не раскрывают IQueryable.
+В каждой фиче находятся тонкий контроллер, папки `Handlers`, `Requests` и при необходимости `Responses`, API-контракты. Сущности находятся в отдельной библиотеке `TalentScout.Data`. Контроллеры не используют DbContext: они вызывают хендлеры и возвращают `Ardalis.Result<T>`. Атрибут библиотеки `[TranslateResultToActionResult]` преобразует результат в HTTP-ответ; `ResultConvention` задаёт коды и формат Problem Details. Ожидаемые ошибки преобразуются в Problem Details с кодами 400/401/404/409/502/503; неожиданные исключения обрабатываются централизованно. Создание кампании возвращает 201 и Location; остальные успешные операции — 200. Общая инфраструктура ограничена хранением, конфигурацией и обработкой ошибок. Три независимых фоновых воркера оценивают профили, отправляют сообщения и анализируют ответы. Каждый использует отдельный запрос очереди; расписание, scopes и обработка ошибок вынесены в `PipelineExecutionService`. HTTP-команды не выбирают действие по текущему статусу: каждая выполняет только указанную операцию. Хендлеры внедряются через конструкторы контроллеров; HTTP-методы принимают только маршрут, query/body и CancellationToken. Доступ к данным выполняется через шесть специализированных репозиториев: интерфейсы находятся в `TalentScout.Data/Repositories/Contracts`, реализации EF Core — в `TalentScout.Data/Repositories`. Хендлеры и worker не зависят от DbContext и не выполняют LINQ-запросов к базе. `IUnitOfWork` сохраняет изменения и аудит общей транзакцией; атомарный захват отправки и SQL для лимитов инкапсулированы в репозитории сообщений. Репозитории возвращают готовые сущности и DTO, не раскрывают IQueryable.
 
 `Candidate` — уникальный профиль. `Enrollment` — участие кандидата в конкретной кампании: статус, оценка и факты отправки. Один профиль может участвовать в разных кампаниях, при этом их статусы не смешиваются. Возраст и другие демографические параметры не используются как поля фильтрации.
 
@@ -108,7 +108,7 @@ OpenAPI генерируется из приложения по `/openapi/v1.jso
 8. `POST /api/enrollments/{id}/send-interview-invitation` — отдельная отправка приглашения только для `Interested`, после первого сообщения и при отсутствии необработанных ответов. После отправки — `InterviewInvitationSent`.
 9. Записать бронирование через `POST /api/interviews/bookings` с `enrollmentId`, `provider`, `externalBookingId`, `startsAt`, `endsAt`. Статус станет `InterviewBooked`.
 
-Команды принимают пустое тело. Вызов команды вне допустимого состояния возвращает 409 и не выполняет другие этапы вместо неё. Повтор отправки возвращает уже сохранённое сообщение без дублирования. Текущий статус можно прочитать через `GET /api/enrollments/{id}`. Автоматический выбор следующего этапа доступен только внутри `PipelineCoordinator`, вызываемого worker.
+Команды принимают пустое тело. Вызов команды вне допустимого состояния возвращает 409 и не выполняет другие этапы вместо неё. Повтор отправки возвращает уже сохранённое сообщение без дублирования. Текущий статус можно прочитать через `GET /api/enrollments/{id}`. Фоновые этапы выполняют `ProfileScreeningWorker`, `MessageSendingWorker` и `ReplyAnalysisWorker`; HTTP-команды сохраняют явную семантику.
 
 Ручное решение: `{ "decision": "Interested", "reason": "Подтверждено рекрутером" }`. Неоднозначные ответы автоматически не уточняются: они направляются на ручное рассмотрение, как допускает ТЗ.
 
@@ -138,9 +138,48 @@ OpenAPI генерируется из приложения по `/openapi/v1.jso
 
 ## Настройки и секреты
 
-`appsettings.json` содержит структуру и несекретные значения. Compose передаёт реальные значения через env с разделителем `__`: `Database__Password`, `Security__ApiKey`, `LinkedIn__ApiKey`, `Ai__ApiKey`, `Scheduling__ApiKey`, `Scheduling__WebhookSigningKey`. `.env` и локальные settings исключены из Git и Docker build context. Не помещать настоящие ключи в `appsettings*.json`.
+Живые обновления SignalR, редактирование кампаний и автодополнение локаций описаны в [docs/workspace-api.md](docs/workspace-api.md). После обновления пересоберите API; новая миграция применится при старте.
+
+Конфигурация разделена по назначению:
+
+* `appsettings.json` — общие несекретные настройки: логирование, AllowedHosts, параметры БД, выбор LinkedIn-провайдера, модель AI, порог confidence, интервалы и лимиты worker. Эти параметры можно менять без правки C#. Пустых ключей, паролей и connection string здесь нет. Отдельный `appsettings.Development.json` не нужен, пока нет отличающихся настроек разработки.
+* Типизированные `DatabaseOptions`, `AiOptions`, `PipelineOptions` и остальные Options — контракт настроек каждого модуля и запасные значения, если параметр вообще не задан конфигурацией. Рабочие значения берутся из `appsettings.json` и переопределений окружения, а не требуют редактирования классов.
+* `.env` — значения конкретного Docker-окружения: пароли, ключи, адреса интеграций и переопределения настроек AI/worker. Compose переводит имена из `.env.example` в ключи .NET с разделителем `__`, например `AI_API_KEY` → `Ai__ApiKey`. Само приложение `.env` не читает. Compose явно задаёт дефолты передаваемых параметров, чтобы уже существующие `.env` без новых переменных продолжали работать.
+* Для запуска без Docker — переменные окружения .NET или User Secrets. User Secrets подключаются стандартным `WebApplication.CreateBuilder` только в Development; идентификатор задан в проекте API, значения хранятся вне репозитория. В deployment используются переменные окружения / хранилище секретов инфраструктуры.
+
+Приоритет: аргументы командной строки → переменные окружения → User Secrets (Development) → `appsettings*.json` → дефолты Options. Дополнительного загрузчика `.env` и отдельного глобального конфига нет. Настройки привязываются в модуле, который их использует. API-ключ и настройки интеграций/worker проверяются при старте.
+
+`.env` и локальные settings исключены из Git и Docker build context. Не помещать настоящие ключи в `appsettings*.json`; файл `appsettings.Local.json` автоматически не загружается. При изменении настроек перезапускайте приложение.
+
+При запуске через Docker меняйте параметры в `.env`:
+
+| Переменная `.env` | Настройка .NET | По умолчанию |
+|---|---|---|
+| `AI_MODEL` | `Ai:Model` | `gpt-4.1-mini` |
+| `AI_MINIMUM_INTEREST_CONFIDENCE` | `Ai:MinimumInterestConfidence` | `0.8` |
+| `PIPELINE_WORKER_ENABLED` | `Pipeline:WorkerEnabled` | `false` |
+| `PIPELINE_POLL_INTERVAL_SECONDS` | `Pipeline:PollIntervalSeconds` | `30` |
+| `PIPELINE_BATCH_SIZE` | `Pipeline:BatchSize` | `10` |
+| `PIPELINE_MINIMUM_SEND_INTERVAL_SECONDS` | `Pipeline:MinimumSendIntervalSeconds` | `60` |
+| `PIPELINE_MAXIMUM_DAILY_MESSAGES_PER_CAMPAIGN` | `Pipeline:MaximumDailyMessagesPerCampaign` | `50` |
+
+Например, `AI_MINIMUM_INTEREST_CONFIDENCE=0.9` повышает порог уверенности, а `PIPELINE_MAXIMUM_DAILY_MESSAGES_PER_CAMPAIGN=20` ограничивает кампанию двадцатью попытками отправки в сутки. Затем выполните `docker compose up -d`: Compose пересоздаст API с новым окружением. Простой `docker compose restart` не подхватывает изменения `.env`. Для изменения самого `appsettings.json`, включённого в Docker-образ, нужна пересборка: `docker compose up --build -d`. Параметры, которые Compose передаёт через environment, имеют приоритет над JSON. Вне Docker их можно менять непосредственно в JSON или переопределять переменными .NET, например `Pipeline__BatchSize`.
 
 Настройки БД задаются отдельными полями `Database`; connection string строится через Npgsql builder, поэтому спецсимволы пароля обрабатываются корректно. Для существующих окружений и тестов поддерживается приоритетная `ConnectionStrings:Database`.
+
+В локальном Compose PostgreSQL использует пароль, поэтому `Database__GssEncryptionMode=Disable` отключает ненужную попытку GSSAPI/Kerberos и сообщение об отсутствующей `libgssapi_krb5.so.2` в Linux-образе .NET. Это не меняет настройки SSL/TLS. Вне Compose сохраняется стандартный `Prefer`; параметр можно задать через `Database:GssEncryptionMode`. При использовании полной `ConnectionStrings:Database` режим задаётся в самой строке: `GSS Encryption Mode=Disable` для окружения без Kerberos.
+
+Для локального запуска API без Compose (нужен доступный PostgreSQL):
+
+```powershell
+dotnet user-secrets set "Security:ApiKey" "<случайный-ключ-минимум-32-символа>" --project TalentScout.Api
+dotnet user-secrets set "Database:Password" "<пароль-локальной-БД>" --project TalentScout.Api
+dotnet user-secrets set "Ai:ApiKey" "<ключ-OpenAI>" --project TalentScout.Api
+# При необходимости: Database:Host, Database:Port, Ai:Model, LinkedIn:* и Pipeline:*.
+dotnet run --project TalentScout.Api --launch-profile http
+```
+
+Шаблоны в угловых скобках заменяются своими значениями. Ключ OpenAI можно не задавать, если AI не используется. При запуске без профиля явно задайте `ASPNETCORE_ENVIRONMENT=Development`, чтобы подключились User Secrets. EF design-time factory в проекте Data использует env, `appsettings.json` из output и дефолты `DatabaseOptions`, но не User Secrets API: для `dotnet ef` передайте `Database__Password` и прочие параметры БД либо `ConnectionStrings__Database` в окружении процесса.
 
 Ключ API — общий серверный ключ для MVP, без пользовательских ролей и разделения организаций. Для будущего публичного frontend/расширения потребуется пользовательская авторизация: серверный ключ в расширение встраивать нельзя. Compose публикует API только на loopback; внешнее размещение требует настроенного HTTPS входа.
 
@@ -219,7 +258,7 @@ dotnet ef migrations add MigrationName --project TalentScout.Data/TalentScout.Da
 
 ## OpenAI и системный промпт из UI
 
-Официальный пакет [OpenAI .NET SDK](https://github.com/openai/openai-dotnet) версии 2.15.0 зарегистрирован за `IRecruitmentAi`. Для запуска достаточно указать `AI_API_KEY` в `.env`; `AI_MODEL` по умолчанию `gpt-4.1-mini`. Вне Compose: `Ai__ApiKey` и при необходимости `Ai__Model`. Ключ остаётся на сервере. `Ai:Provider` и `Ai:BaseUrl` больше не нужны. В `appsettings.json` хранятся пустой ключ, модель и существующий порог confidence.
+Официальный пакет [OpenAI .NET SDK](https://github.com/openai/openai-dotnet) версии 2.15.0 зарегистрирован за `IRecruitmentAi`. Для запуска достаточно указать `AI_API_KEY` в `.env`; `AI_MODEL` по умолчанию `gpt-4.1-mini`. Вне Compose: `Ai__ApiKey` и при необходимости `Ai__Model` либо эквивалентные ключи User Secrets. Ключ остаётся на сервере. `Ai:Provider` и `Ai:BaseUrl` больше не нужны. Несекретные модель и порог confidence указаны в `appsettings.json`; для Docker переопределяются через `AI_MODEL` и `AI_MINIMUM_INTEREST_CONFIDENCE` в `.env`. Пустой API-ключ в JSON не хранится.
 
 Системный промпт хранится отдельно для каждой кампании в БД, не в appsettings. Его можно задать в `POST /api/campaigns` полем `systemPrompt` или обновить из UI:
 

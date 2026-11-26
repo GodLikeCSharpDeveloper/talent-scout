@@ -5,6 +5,14 @@ namespace TalentScout.Api.Integrations.LinkedIn.Providers.Unipile.Api;
 
 public sealed class UnipileProfilesApi(IUnipileHttpClient http) : IUnipileProfilesApi
 {
+    public Task<UnipilePage<UnipileSentInvitation>> GetSentInvitationsAsync(string accountId, string? cursor, CancellationToken ct)
+    {
+        return http.GetAsync<UnipilePage<UnipileSentInvitation>>(
+            $"users/invite/sent?account_id={Uri.EscapeDataString(accountId)}&limit=100" +
+            (string.IsNullOrEmpty(cursor) ? "" : "&cursor=" + Uri.EscapeDataString(cursor)),
+            ct);
+    }
+
     public Task<UnipileProfile> GetAsync(string accountId, string identifier, CancellationToken ct)
     {
         return http.GetAsync<UnipileProfile>(

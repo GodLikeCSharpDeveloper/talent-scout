@@ -17,7 +17,8 @@ public sealed class LinkedInIntegrationController(
     GetLinkedInIntegrationStatusHandler getStatus,
     GetLinkedInAccountsHandler getAccounts,
     ImportLinkedInProfileHandler importProfile,
-    GetUnipileWebhookEventsHandler getEvents) : ControllerBase
+    GetUnipileWebhookEventsHandler getEvents,
+    GetLinkedInLocationsHandler getLocations) : ControllerBase
 {
     [HttpGet]
     public Result<LinkedInIntegrationStatusResponse> GetStatus()
@@ -29,6 +30,12 @@ public sealed class LinkedInIntegrationController(
     public Task<Result<IReadOnlyList<LinkedInAccount>>> GetAccounts(CancellationToken ct)
     {
         return getAccounts.HandleAsync(ct);
+    }
+
+    [HttpGet("locations")]
+    public Task<Result<List<LinkedInSearchLocation>>> Locations([FromQuery] string query, CancellationToken ct)
+    {
+        return getLocations.HandleAsync(query, ct);
     }
 
     [HttpPost("profiles/import")]

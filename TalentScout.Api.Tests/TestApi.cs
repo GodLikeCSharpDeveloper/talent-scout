@@ -8,6 +8,7 @@ using TalentScout.Api.Integrations.Ai.Abstractions;
 using TalentScout.Api.Integrations.Ai.Models;
 using TalentScout.Api.Integrations.LinkedIn.Abstractions;
 using TalentScout.Api.Integrations.LinkedIn.Models;
+using TalentScout.Api.Shared;
 using TalentScout.Data.Entities;
 using TalentScout.Data.Persistence;
 using Testcontainers.PostgreSql;
@@ -55,6 +56,7 @@ public sealed class TestApi(string connectionString) : WebApplicationFactory<Pro
             services.RemoveAll<ILinkedInProfiles>();
             services.RemoveAll<ILinkedInContacts>();
             services.RemoveAll<ILinkedInConversations>();
+            services.RemoveAll<ILinkedInSynchronization>();
             services.RemoveAll<ILinkedInSearchParameters>();
             services.RemoveAll<ILinkedInAdministration>();
             services.RemoveAll<IRecruitmentAi>();
@@ -62,6 +64,7 @@ public sealed class TestApi(string connectionString) : WebApplicationFactory<Pro
             services.AddSingleton<ILinkedInProfiles>(LinkedIn);
             services.AddSingleton<ILinkedInContacts>(LinkedIn);
             services.AddSingleton<ILinkedInConversations>(LinkedIn);
+            services.AddSingleton<ILinkedInSynchronization>(LinkedIn);
             services.AddSingleton<ILinkedInSearchParameters>(LinkedIn);
             services.AddSingleton<ILinkedInAdministration>(new TestLinkedInAdministration());
             services.AddSingleton<IRecruitmentAi>(Ai);
@@ -84,26 +87,42 @@ public sealed class TestApi(string connectionString) : WebApplicationFactory<Pro
     }
 }
 
-public sealed class TestLinkedIn : ILinkedInGateway, ILinkedInProfiles, ILinkedInContacts, ILinkedInConversations, ILinkedInSearchParameters
+public sealed class TestLinkedIn : ILinkedInGateway, ILinkedInProfiles, ILinkedInContacts, ILinkedInConversations, ILinkedInSearchParameters, ILinkedInSynchronization
 {
     private readonly ConcurrentDictionary<string, CandidateProfile> profiles = new();
+    public LinkedInSyncSnapshot? SyncSnapshot { get; set; }
+    public bool FailSynchronization { get; set; }
     public List<OutgoingMessage> Sent { get; } = [];
     public Queue<TestProfileSearchPage> SearchPages { get; } = new();
     public List<ProfileSearch> Searches { get; } = [];
+    public List<string> LocationQueries { get; } = [];
     public bool FailAfterSend { get; set; }
+    public LinkedInContactStatus ContactStatus { get; set; } = new(true, true, false);
+    public List<(string RecipientId, string? Note)> Invitations { get; } = [];
+    public bool FailAfterInvitation { get; set; }
+    public LinkedInChat? Chat { get; set; }
 
     public Task<LinkedInContactStatus> GetStatusAsync(string recipientId, CancellationToken ct)
     {
-        return Task.FromResult(new LinkedInContactStatus(true, true, false));
+        return Task.FromResult(ContactStatus);
     }
 
     public Task<string> SendInvitationAsync(string recipientId, string? note, CancellationToken ct)
     {
-        throw new NotSupportedException("This fake does not model connection invitations.");
+        lock (Invitations)
+            Invitations.Add((recipientId, note));
+
+        if (FailAfterInvitation)
+            throw new TimeoutException("Invitation accepted but response lost.");
+
+        return Task.FromResult(Guid.NewGuid().ToString());
     }
 
     public Task<LinkedInChat> GetChatAsync(string chatId, CancellationToken ct)
     {
+        if (Chat is not null)
+            return Task.FromResult(Chat);
+
         throw new NotSupportedException("This fake does not model chat metadata.");
     }
 
@@ -136,12 +155,25 @@ public sealed class TestLinkedIn : ILinkedInGateway, ILinkedInProfiles, ILinkedI
 
     public Task<IReadOnlyList<LinkedInSearchLocation>> FindLocationsAsync(string query, CancellationToken ct)
     {
+        LocationQueries.Add(query);
+
         return Task.FromResult<IReadOnlyList<LinkedInSearchLocation>>([new LinkedInSearchLocation("test-location", query)]);
+    }
+
+    public Task<LinkedInSyncSnapshot> ReadAsync(string recipientId, string? chatId, CancellationToken ct)
+    {
+        if (FailSynchronization)
+            throw new ApiException(503, "Provider unavailable.");
+
+        return Task.FromResult(SyncSnapshot ?? new LinkedInSyncSnapshot(ContactStatus, Chat, []));
     }
 }
 
 public sealed class TestAi : IRecruitmentAi
 {
+    public int AssessmentCalls { get; private set; }
+    public int ConnectionNoteCalls { get; private set; }
+    public string ConnectionNote { get; set; } = "Hi, I have a developer role that may interest you. Let's connect?";
     public Interest Interest { get; set; } = Interest.Interested;
     public Vacancy? LastVacancy { get; private set; }
     public decimal Confidence { get; set; } = 0.99m;
@@ -149,6 +181,7 @@ public sealed class TestAi : IRecruitmentAi
 
     public Task<ProfileAssessment> AssessProfileAsync(Vacancy vacancy, CandidateProfile profile, CancellationToken ct)
     {
+        AssessmentCalls++;
         LastVacancy = vacancy;
 
         return Task.FromResult(new ProfileAssessment(MeetsRequirements, 0.95m, "Relevant experience."));
@@ -159,6 +192,14 @@ public sealed class TestAi : IRecruitmentAi
         LastVacancy = vacancy;
 
         return Task.FromResult($"Hello {profile.Name}, are you interested in {vacancy.Title}?");
+    }
+
+    public Task<string> WriteConnectionNoteAsync(Vacancy vacancy, CandidateProfile profile, CancellationToken ct)
+    {
+        LastVacancy = vacancy;
+        ConnectionNoteCalls++;
+
+        return Task.FromResult(ConnectionNote);
     }
 
     public Task<ReplyAssessment> ClassifyReplyAsync(Vacancy vacancy, IReadOnlyList<ConversationEntry> history, CancellationToken ct)

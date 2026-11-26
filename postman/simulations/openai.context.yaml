@@ -3,6 +3,13 @@ fingerprints:
   - git: "2a4c1fe + working tree OpenAI integration"
     cli: "1.75.0"
 assumptions:
+  - id: connection-note-generation
+    status: unknown
+    claim: The configured model produces a useful LinkedIn connection note within 200 characters.
+    reason: The SDK request is checked over the local Kestrel HTTP fixture; real generation quality and account limits were not exercised.
+    verification: OpenAiTests verifies the strict JSON response, campaign instructions and note prompt; ConnectionOutreachTests verifies length rejection, saved notes, deduplication, spacing, timeout handling and continuation after acceptance/reply.
+    source: TalentScout.Api.Tests/OpenAiTests.cs; TalentScout.Api.Tests/ConnectionOutreachTests.cs; https://developer.unipile.com/docs/provider-limits-and-restrictions
+    updated_at: "2026-11-26"
   - id: sdk-structured-contract
     status: unknown
     claim: The configured real model accepts all three strict JSON schemas and follows the campaign prompt.

@@ -6,6 +6,33 @@ namespace TalentScout.Data.Repositories;
 
 public sealed class MessageRepository(AppDbContext db) : IMessageRepository
 {
+    public async Task<HashSet<string>> GetExistingExternalIdsAsync(IReadOnlyCollection<string> externalIds, CancellationToken ct)
+    {
+        if (externalIds.Count == 0)
+            return [];
+
+        var existing = await db.Messages.Where(x => x.ExternalId != null && externalIds.Contains(x.ExternalId))
+            .Select(x => x.ExternalId!).ToListAsync(ct);
+
+        return existing.ToHashSet(StringComparer.Ordinal);
+    }
+
+    public Task<List<Message>> GetForSynchronizationAsync(Guid enrollmentId, CancellationToken ct)
+    {
+        return db.Messages.Where(x => x.EnrollmentId == enrollmentId).ToListAsync(ct);
+    }
+
+    public async Task<bool> ResetForRetryAsync(Guid messageId, CancellationToken ct)
+    {
+        var reset = await db.Messages.Where(x => x.Id == messageId && (x.Delivery == DeliveryStatus.Unknown || x.Delivery == DeliveryStatus.Sending))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.Delivery, DeliveryStatus.Pending).SetProperty(x => x.Version, Guid.NewGuid()), ct);
+        var tracked = db.Messages.Local.FirstOrDefault(x => x.Id == messageId);
+        if (tracked is not null)
+            await db.Entry(tracked).ReloadAsync(ct);
+
+        return reset == 1;
+    }
+
     public async Task<Message?> FindAsync(Guid id, CancellationToken ct)
     {
         return await db.Messages.FindAsync([id], ct);
@@ -23,13 +50,13 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
 
     public Task<Message?> GetNextUnanalyzedReplyAsync(Guid enrollmentId, CancellationToken ct)
     {
-        return db.Messages.Where(x => x.EnrollmentId == enrollmentId && x.Kind == MessageKind.Reply && !x.Analyzed)
+        return db.Messages.Where(x => x.EnrollmentId == enrollmentId && x.Kind == MessageKind.Reply && !x.Analyzed && !x.IsDeleted)
             .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).FirstOrDefaultAsync(ct);
     }
 
     public Task<List<Message>> GetHistoryAsync(Guid enrollmentId, DateTimeOffset through, CancellationToken ct)
     {
-        return db.Messages.AsNoTracking().Where(x => x.EnrollmentId == enrollmentId && x.CreatedAt <= through)
+        return db.Messages.AsNoTracking().Where(x => x.EnrollmentId == enrollmentId && x.CreatedAt <= through && !x.IsDeleted)
             .OrderBy(x => x.CreatedAt).ThenBy(x => x.Id).ToListAsync(ct);
     }
 
@@ -65,6 +92,9 @@ public sealed class MessageRepository(AppDbContext db) : IMessageRepository
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.NextOutboundAt, now.AddSeconds(intervalSeconds)), ct);
 
         if (acquired == 0)
+            return false;
+
+        if (await db.LinkedInConversations.AnyAsync(x => x.EnrollmentId == enrollment.Id && x.SynchronizationLeaseUntil > now, ct))
             return false;
 
         var dayStart = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);

@@ -13,5 +13,8 @@ public interface IMessageRepository
     Task<bool> TryClaimDeliveryAsync(Enrollment enrollment, Message message, DateTimeOffset now, int intervalSeconds, int dailyLimit, CancellationToken ct);
     Task ReloadAsync(Message message, CancellationToken ct);
     Task MarkDeliveryUnknownAsync(Guid messageId, CancellationToken ct);
+    Task<List<Message>> GetForSynchronizationAsync(Guid enrollmentId, CancellationToken ct);
+    Task<HashSet<string>> GetExistingExternalIdsAsync(IReadOnlyCollection<string> externalIds, CancellationToken ct);
+    Task<bool> ResetForRetryAsync(Guid messageId, CancellationToken ct);
     void Add(Message message);
 }

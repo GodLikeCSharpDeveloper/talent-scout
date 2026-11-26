@@ -10,4 +10,8 @@ public sealed record LinkedInConversationResponse(
     string? ConversationUrl,
     DeliveryStatus? ConnectionRequestDelivery,
     string? InvitationId,
-    DateTimeOffset? ConnectionConfirmedAt);
+    DateTimeOffset? ConnectionConfirmedAt,
+    string? ConnectionNote = null,
+    string ConnectionState = "Unknown",
+    DateTimeOffset? LastSynchronizedAt = null,
+    string? SynchronizationError = null);

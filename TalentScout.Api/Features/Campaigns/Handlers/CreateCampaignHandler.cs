@@ -25,6 +25,7 @@ public sealed class CreateCampaignHandler(ICampaignRepository campaigns, IAuditR
             SystemPrompt = request.SystemPrompt.Trim(),
             SearchQuery = request.SearchQuery.Trim(),
             Location = request.Location.Trim(),
+            LocationId = string.IsNullOrWhiteSpace(request.LocationId) ? null : request.LocationId.Trim(),
             Recruiter = request.Recruiter.Trim(),
             InterviewUrl = string.IsNullOrWhiteSpace(request.InterviewUrl) ? "" : new Uri(request.InterviewUrl.Trim()).AbsoluteUri,
             MinimumFitScore = request.MinimumFitScore,

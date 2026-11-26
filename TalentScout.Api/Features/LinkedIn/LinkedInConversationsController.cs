@@ -15,8 +15,22 @@ public sealed class LinkedInConversationsController(
     GetLinkedInConversationHandler getConversation,
     BindLinkedInConversationHandler bindConversation,
     SendConnectionRequestHandler sendConnection,
+    SynchronizeLinkedInHandler synchronize,
+    RetryLinkedInOutreachHandler retry,
     GetLinkedInContactStatusHandler getContactStatus) : ControllerBase
 {
+    [HttpPost("sync")]
+    public Task<Result<LinkedInConversationResponse>> Synchronize(Guid id, CancellationToken ct)
+    {
+        return synchronize.HandleAsync(id, ct);
+    }
+
+    [HttpPost("retry")]
+    public Task<Result<RetryLinkedInOutreachResponse>> Retry(Guid id, RetryLinkedInOutreachRequest request, CancellationToken ct)
+    {
+        return retry.HandleAsync(id, request, ct);
+    }
+
     [HttpGet("conversation")]
     public Task<Result<LinkedInConversationResponse>> GetConversation(Guid id, CancellationToken ct)
     {
